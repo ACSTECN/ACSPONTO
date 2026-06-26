@@ -40,6 +40,23 @@ def nome_dia_semana(data_ref):
     dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
     return dias[data_ref.weekday()]
 
+
+def validar_senha_e_migrar(cursor, usuario_id, senha_digitada, senha_armazenada):
+    if not senha_armazenada:
+        return False
+
+    # Durante a migracao alguns usuarios ficaram com senha em texto puro.
+    # Se isso acontecer, validamos uma vez e ja salvamos em bcrypt.
+    if senha_armazenada.startswith("$2a$") or senha_armazenada.startswith("$2b$") or senha_armazenada.startswith("$2y$"):
+        return bcrypt.checkpw(senha_digitada.encode('utf-8'), senha_armazenada.encode('utf-8'))
+
+    if senha_digitada != senha_armazenada:
+        return False
+
+    nova_hash = bcrypt.hashpw(senha_digitada.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    cursor.execute("UPDATE usuarios SET senha = %s WHERE id = %s", (nova_hash, usuario_id))
+    return True
+
 @app.route('/')
 def index():
     if 'logged_in' in session:
@@ -160,7 +177,7 @@ def login():
                     return redirect(url_for('login'))
 
                 senha_hash = user[2]
-                if not bcrypt.checkpw(senha.encode('utf-8'), senha_hash.encode('utf-8')):
+                if not validar_senha_e_migrar(cursor, user[0], senha, senha_hash):
                     flash('Senha incorreta.', 'error')
                     return redirect(url_for('login'))
 
