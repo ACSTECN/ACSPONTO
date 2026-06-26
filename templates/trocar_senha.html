@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Redefinir Senha</title>
+  <style>
+    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .box { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 0 20px #000; }
+    h2 { color: #22d3ee; margin-bottom: 20px; text-align: center; }
+    input { width: 100%; padding: 10px; border: none; border-radius: 8px; margin-bottom: 15px; background: #0f172a; color: white; border: 1px solid #334155; }
+    button { padding: 10px 20px; background: #3b82f6; border: none; color: white; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <form class="box" method="POST">
+    <h2>Redefinir Senha</h2>
+    <input type="password" name="nova_senha" placeholder="Nova Senha" required>
+    <input type="password" name="repetir_senha" placeholder="Repetir Senha" required>
+    <button type="submit">Atualizar Senha</button>
+  </form>
+</body>
+</html>

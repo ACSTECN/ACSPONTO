@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Registros de Ponto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+    font-family: 'Inter', sans-serif;
+    background-color: #1E2A38;
+    margin: 0;
+    display: flex;
+}
+
+.sidebar {
+    width: 200px;
+    background-color: #1E2A38;
+    padding: 20px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 3px 0 10px rgba(0,0,0,0.3);
+    min-height: 100vh;
+}
+
+.sidebar a {
+    background-color: #2F80ED10;
+    color: #ffffff;
+    padding: 10px 12px;
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05);
+}
+
+.sidebar a:hover {
+    background-color: #2F80ED30;
+}
+
+.main-content {
+    flex: 1;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.container {
+    background: #3a4b61;
+    border-radius: 16px;
+    padding: 30px 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 1100px;
+    color: white;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #ffffff;
+}
+
+.filtros {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.filtros input,
+.filtros select,
+.filtros button {
+    padding: 10px 14px;
+    margin: 5px;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: #1E2A38;
+    border: 1px solid #555;
+    color: white;
+}
+
+.filtros button {
+    background-color: #2F80ED;
+    border: none;
+    cursor: pointer;
+}
+
+.filtros button:hover {
+    background-color: #1f5db2;
+}
+
+/* TABELA ESCURA */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    background-color: #1E2A38;
+    color: white;
+}
+
+thead {
+    background-color: #16222F;
+    color: #ffffff;
+}
+
+thead th {
+    padding: 12px 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+tbody tr {
+    transition: background-color 0.2s;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #283648;
+}
+
+tbody tr:hover {
+    background-color: #36485d;
+}
+
+td {
+    padding: 10px 14px;
+    text-align: center;
+    vertical-align: top;
+}
+
+td small {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+td .icone-editar {
+    color: #f39c12;
+    margin-left: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+td .abonado {
+    color: #27ae60;
+    font-weight: 500;
+}
+
+td .corrigido {
+    color: #2980b9;
+    font-weight: 500;
+}
+
+h3 {
+    color: #2F80ED;
+    margin-top: 30px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 18px;
+}
+
+/* Botão voltar */
+.voltar {
+    display: block;
+    margin: 30px auto 0;
+    text-align: center;
+    background: none;
+    border: none;
+    color: #2F80ED;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.voltar:hover {
+    text-decoration: underline;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: #1E2A38;
+    padding: 30px;
+    border-radius: 12px;
+    width: 500px;
+    color: white;
+}
+
+.modal-content textarea,
+.modal-content input[type="time"] {
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #283648;
+    border: 1px solid #555;
+    color: white;
+}
+
+.modal-content button {
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
+    background-color: #2F80ED;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.modal-content button:hover {
+    background-color: #1f5db2;
+}
+
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <a href="/">🏠 Início</a>
+    <a href="{{ url_for('logout') }}">⬅ Sair</a>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <h2>Registros de Ponto da Equipe</h2>
+
+        <div class="filtros">
+            <form method="GET" action="{{ url_for('visualizar_pontos') }}">
+                <input type="date" name="data" value="{{ data_filtro or '' }}">
+                <select name="usuario_id">
+                    <option value="">-- Todos os usuários --</option>
+                    {% for u in usuarios %}
+                        <option value="{{ u.ID }}" {% if usuario_filtro == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Filtrar</button>
+            </form>
+        </div>
+
+        {% for nome, dias in registros_por_usuario.items() %}
+            <h3>👤 {{ nome }}</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Entrada</th>
+                        <th>Pausa</th>
+                        <th>Volta da Pausa</th>
+                        <th>Saída</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data, registros in dias.items() %}
+                        <tr>
+                            <td>{{ data }}</td>
+                            {% for tipo in ['entrada', 'pausa', 'volta_pausa', 'saida'] %}
+                                <td>
+                                    {{ registros[tipo] }}
+                                    {% if not registros['abonado_' + tipo] %}
+                                        <span onclick="abrirModal('{{ registros['id_' + tipo] }}', '{{ registros[tipo] }}')" style="cursor:pointer; color:orange;">✏️</span>
+                                    {% endif %}
+                                    {% if registros['corrigido_por_' + tipo] and not registros['abonado_' + tipo] %}
+                                        <br><small style="color:green;">Corrigido por: {{ registros['corrigido_por_' + tipo] }}</small>
+                                    {% endif %}
+                                    {% if registros['abonado_' + tipo] %}
+                                        <br><small style="color:green;">✔️ Abonado</small>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+
+        <form action="{{ url_for('index') }}">
+            <button class="voltar">← Voltar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <h3>Editar Registro</h3>
+        <form method="POST" action="{{ url_for('editar_registro') }}">
+            <input type="hidden" name="ponto_id" id="ponto_id">
+            <input type="hidden" name="acao" value="correcao">
+            <label for="novo_horario">Novo Horário:</label>
+            <input type="time" name="novo_horario" id="novo_horario" required>
+            <label for="motivo">Motivo da correção:</label>
+            <textarea name="motivo" id="motivo" required></textarea>
+            <br>
+            <button type="submit">Salvar</button>
+            <button type="button" onclick="fecharModal()" style="margin-left:10px; background:#ccc; color:#333;">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function abrirModal(id, horarioAtual) {
+        document.getElementById('ponto_id').value = id;
+        document.getElementById('novo_horario').value = horarioAtual;
+        document.getElementById('modalEditar').style.display = 'flex';
+    }
+
+    function fecharModal() {
+        document.getElementById('modalEditar').style.display = 'none';
+    }
+</script>
+</body>
+</html>

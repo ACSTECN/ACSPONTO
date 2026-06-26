@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - ACS Ponto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+
+
+  <style>
+    body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  background: linear-gradient(-45deg, #1e2a38, #233648, #1e2a38, #233648);
+  background-size: 400% 400%;
+  animation: animarFundo 15s ease infinite;
+}
+
+@keyframes animarFundo {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+    .conteudo {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo {
+      width: 350px;
+      margin-bottom: 40px;
+    }
+
+    .perfil-opcoes {
+      display: flex;
+      gap: 30px;
+      margin-top: 20px;
+    }
+
+    .perfil-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      border: none;
+      border-radius: 20px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+      width: 150px;
+      height: 150px;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .perfil-btn i {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .perfil-btn span {
+      font-size: 16px;
+    }
+
+    .perfil-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-admin { background-color: #2F80ED; }
+    .btn-func  { background-color: #27AE60; }
+    .btn-rh    { background-color: #6f42c1; }
+
+    form {
+      display: none;
+      margin-top: 40px;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(8px);
+    }
+
+    input[type="email"],
+    input[type="password"] {
+      padding: 15px;
+      margin: 10px 0;
+      width: 280px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      background-color: #ecf0f1;
+      outline: none;
+    }
+
+    input::placeholder { color: #999; }
+
+    form button {
+      margin-top: 15px;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 10px;
+      background-color: #2F80ED;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    form button:hover {
+      background-color: #1c65d1;
+      transform: scale(1.05);
+    }
+
+    .mensagem {
+      color: #E74C3C;
+      margin-top: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+ 
+
+
+
+
+
+  <div class="conteudo">
+    <img src="/logofundo.png" alt="Logo ACS Ponto" class="logo">
+
+    <div class="perfil-opcoes">
+      <button class="perfil-btn btn-admin" onclick="mostrarLogin('admin')">
+        <i class="fas fa-user-shield"></i>
+        <span>Administrador</span>
+      </button>
+      <button class="perfil-btn btn-func" onclick="mostrarLogin('funcionario')">
+        <i class="fas fa-user-check"></i>
+        <span>Bater ponto</span>
+      </button>
+      <button class="perfil-btn btn-rh" onclick="mostrarLogin('rh')">
+        <i class="fas fa-users-cog"></i>
+        <span>RH</span>
+      </button>
+    </div>
+
+    <form method="POST" id="formLogin">
+      <input type="hidden" name="tipo" id="tipoPerfil">
+      <input type="email" name="email" placeholder="E-mail" required><br>
+      <input type="password" name="senha" placeholder="Senha" required><br>
+      <button type="submit" class="btn-admin">Entrar</button>
+    </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for categoria, mensagem in messages %}
+          <p class="mensagem">{{ mensagem }}</p>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <script>
+    function mostrarLogin(tipo) {
+      document.getElementById("tipoPerfil").value = tipo;
+      document.getElementById("formLogin").style.display = "block";
+    }
+
+    tsParticles.load("particles-js", {
+    background: { color: "#1E2A38" },
+    fpsLimit: 60,
+    interactivity: {
+      events: { onClick: { enable: false }, onHover: { enable: false } }
+    },
+    particles: {
+      color: { value: "#ffffff" },
+      move: { enable: true, speed: 0.5 },
+      number: { value: 40 },
+      size: { value: 2 },
+      opacity: { value: 0.3 }
+    }
+  });
+  </script>
+
+</body>
+</html>

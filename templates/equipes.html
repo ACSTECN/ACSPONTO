@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciar Equipes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body { background-color: #0f172a; color: white; display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 220px;
+      background-color: #1e293b;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 3px 0 10px rgba(0,0,0,0.4);
+    }
+
+    .sidebar a, .sidebar button {
+      background-color: #1e40af;
+      color: #fff;
+      padding: 12px;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: background 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .sidebar a:hover, .sidebar button:hover {
+      background-color: #3b82f6;
+    }
+
+    .main {
+      flex: 1;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background-color: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+      font-size: 26px;
+      margin-bottom: 30px;
+      text-align: center;
+      color: #22d3ee;
+    }
+
+    .botao-novo, .botao-voltar {
+      background-color: #0ea5e9;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 20px;
+      margin-right: 10px;
+    }
+
+    .equipe {
+      background-color: #0f172a;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #22d3ee;
+    }
+
+    .equipe h3 { color: #4ade80; margin-bottom: 8px; }
+
+    .botao-editar {
+      background-color: #10b981;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .botao-editar:hover {
+      background-color: #059669;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.7);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      color: white;
+    }
+
+    .modal-content h3 { margin-bottom: 20px; color: #22d3ee; }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background-color: #0f172a;
+      color: white;
+    }
+
+    .modal-content button {
+      background-color: #0ea5e9;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      color: white;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    .modal-content button:hover {
+      background-color: #0284c7;
+    }
+
+    .close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 22px;
+      color: #ccc;
+      cursor: pointer;
+    }
+
+    #lista-membros div span { margin-right: 6px; }
+    #lista-membros div button { background: none; border: none; color: red; cursor: pointer; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+   
+    <a href="{{ url_for('painel') }}">⚙️ Painel</a>
+   
+    <button onclick="abrirNovoModal()">➕ Nova Equipe</button>
+    
+    <a href="{{ url_for('logout') }}">⬅ Logout</a>
+  </div>
+  <div class="main">
+    <div class="container">
+      <h2><i class="fas fa-users"></i> Gerenciar Equipes</h2>
+    
+     
+      {% for equipe in equipes %}
+      <div class="equipe">
+        <h3>{{ equipe.NomeEquipe }}</h3>
+        <p><strong>👨‍💼 Supervisor:</strong> {{ equipe.Supervisor or 'Sem supervisor' }}</p>
+        <p><strong>👥 Membros:</strong>
+          {% if membros_por_equipe[equipe.ID] %}
+              {{ membros_por_equipe[equipe.ID] | map(attribute='Nome') | join(', ') }}
+          {% else %}
+              Nenhum membro.
+          {% endif %}
+        </p>
+        <button class="botao-editar"
+                data-id="{{ equipe.ID }}"
+                data-nome="{{ equipe.NomeEquipe }}"
+                data-supervisor="{{ equipe.SupervisorID }}"
+                data-membros='{{ membros_por_equipe[equipe.ID] | tojson }}'>
+          <i class="fas fa-pen-to-square"></i> Editar Equipe
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="modalEditar" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="fecharModal()">&times;</span>
+      <h3 id="titulo-modal">Editar Equipe</h3>
+      <form method="POST" action="/editar-equipe" onsubmit="return prepararEnvio()">
+        <input type="hidden" name="equipe_id" id="modalEquipeID">
+        <input type="hidden" name="membros" id="inputMembrosFinal">
+        <label for="modalNomeEquipe">Nome da Equipe:</label>
+        <input type="text" name="nome_equipe" id="modalNomeEquipe" required>
+        <label for="modalSupervisor">Supervisor:</label>
+        <select name="supervisor_id" id="modalSupervisor">
+          {% for usuario in todos_usuarios %}
+          <option value="{{ usuario.ID }}">{{ usuario.Nome }}</option>
+          {% endfor %}
+        </select>
+        <label>Membros atuais:</label>
+        <div id="lista-membros" style="margin-bottom: 12px;"></div>
+        <label for="selectNovosMembros">Adicionar membros:</label>
+        <select id="selectNovosMembros" multiple size="7">
+          {% for usuario in todos_usuarios %}
+          <option value="{{ usuario.ID }}">{{ usuario.Nome }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Salvar Alterações</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll('.botao-editar').forEach(botao => {
+        botao.addEventListener('click', () => {
+          const id = botao.getAttribute('data-id');
+          const nome = botao.getAttribute('data-nome');
+          const supervisorID = botao.getAttribute('data-supervisor');
+          const membros = JSON.parse(botao.getAttribute('data-membros'));
+
+          document.getElementById('titulo-modal').innerText = "Editar Equipe";
+          document.getElementById('modalEquipeID').value = id;
+          document.getElementById('modalNomeEquipe').value = nome;
+          document.getElementById('modalSupervisor').value = supervisorID;
+
+          const lista = document.getElementById('lista-membros');
+          lista.innerHTML = '';
+          membros.forEach((m) => {
+            const div = document.createElement('div');
+            div.style.marginBottom = "5px";
+            div.innerHTML = `<span data-id="${m.ID}">${m.Nome}</span> <button type="button" onclick="removerMembro(this)">❌</button>`;
+            lista.appendChild(div);
+          });
+
+          const select = document.getElementById('selectNovosMembros');
+          for (let opt of select.options) {
+            opt.selected = false;
+            opt.style.display = 'block';
+            if (opt.value === supervisorID) opt.style.display = 'none';
+          }
+
+          atualizarMembrosHidden();
+          document.getElementById('modalEditar').style.display = 'flex';
+        });
+      });
+    });
+
+    function abrirNovoModal() {
+      document.getElementById('titulo-modal').innerText = "Nova Equipe";
+      document.getElementById('modalEquipeID').value = '';
+      document.getElementById('modalNomeEquipe').value = '';
+      document.getElementById('modalSupervisor').selectedIndex = 0;
+      document.getElementById('lista-membros').innerHTML = '';
+
+      const select = document.getElementById('selectNovosMembros');
+      for (let opt of select.options) opt.selected = false;
+
+      atualizarMembrosHidden();
+      document.getElementById('modalEditar').style.display = 'flex';
+    }
+
+    function fecharModal() {
+      document.getElementById('modalEditar').style.display = 'none';
+      document.getElementById('modalEquipeID').value = '';
+      document.getElementById('modalNomeEquipe').value = '';
+      document.getElementById('modalSupervisor').selectedIndex = 0;
+      document.getElementById('lista-membros').innerHTML = '';
+      atualizarMembrosHidden();
+    }
+
+    function removerMembro(button) {
+      button.parentElement.remove();
+      atualizarMembrosHidden();
+    }
+
+    function atualizarMembrosHidden() {
+      const ids = Array.from(document.querySelectorAll('#lista-membros span')).map(e => e.getAttribute('data-id'));
+      const novosSelecionados = Array.from(document.getElementById('selectNovosMembros').selectedOptions).map(e => e.value);
+      const todos = [...new Set([...ids, ...novosSelecionados])];
+      document.getElementById('inputMembrosFinal').value = JSON.stringify(todos);
+    }
+
+    function prepararEnvio() {
+      atualizarMembrosHidden();
+      return true;
+    }
+  </script>
+</body>
+</html>
