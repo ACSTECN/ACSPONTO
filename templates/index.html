@@ -252,12 +252,17 @@
 
             <form method="POST" action="{{ url_for('bater_ponto') }}">
                 <div class="buttons">
-                    <button type="submit" name="tipo" value="entrada">🕒 Entrada</button>
-                    <button type="submit" name="tipo" value="pausa">☕ Pausa</button>
-                    <button type="submit" name="tipo" value="volta_pausa">🔄 Volta da Pausa</button>
-                    <button type="submit" name="tipo" value="saida">📤 Saída</button>
+                    <button type="submit" name="tipo" value="entrada" {% if proximo_tipo != 'entrada' %}disabled{% endif %}>🕒 Entrada</button>
+                    <button type="submit" name="tipo" value="pausa" {% if proximo_tipo != 'pausa' %}disabled{% endif %}>☕ Pausa</button>
+                    <button type="submit" name="tipo" value="volta_pausa" {% if proximo_tipo != 'volta_pausa' %}disabled{% endif %}>🔄 Volta da Pausa</button>
+                    <button type="submit" name="tipo" value="saida" {% if proximo_tipo != 'saida' %}disabled{% endif %}>📤 Saída</button>
                 </div>
             </form>
+            {% if proximo_tipo %}
+                <div class="welcome">Proximo registro esperado: <b>{{ proximo_tipo.replace('_', ' ').title() }}</b></div>
+            {% else %}
+                <div class="welcome">Todos os registros de hoje ja foram concluidos.</div>
+            {% endif %}
 
             <div class="registro-dia">
                 <h3>📅 Ponto de Hoje</h3>

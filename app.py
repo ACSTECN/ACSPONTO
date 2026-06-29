@@ -41,6 +41,17 @@ def nome_dia_semana(data_ref):
     return dias[data_ref.weekday()]
 
 
+TIPOS_PONTO = ['entrada', 'pausa', 'volta_pausa', 'saida']
+
+
+def proximo_tipo_esperado(tipos_registrados):
+    tipos_normalizados = {tipo.strip().lower() for tipo in tipos_registrados if tipo}
+    for tipo in TIPOS_PONTO:
+        if tipo not in tipos_normalizados:
+            return tipo
+    return None
+
+
 def validar_senha_e_migrar(cursor, usuario_id, senha_digitada, senha_armazenada):
     if not senha_armazenada:
         return False
@@ -102,11 +113,14 @@ def index():
                     "motivo": motivo if abonado else None
                 }
 
+        proximo_tipo = proximo_tipo_esperado([tipo for tipo, *_ in pontos_do_dia])
+
         return render_template(
             'index.html',
             nome=nome_usuario,
             ano=datetime.now().year,
-            pontos_dia=pontos_dict
+            pontos_dia=pontos_dict,
+            proximo_tipo=proximo_tipo
         )
 
     return redirect(url_for('login'))
@@ -283,20 +297,45 @@ def bater_ponto():
         with conectar() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT COUNT(*) FROM ponto
-                WHERE usuario_id = %s AND data_registro = %s AND tipo = %s
-            """, (usuario_id, data, tipo))
-            existe = cursor.fetchone()[0]
+                SELECT tipo FROM ponto
+                WHERE usuario_id = %s AND data_registro = %s
+                ORDER BY hora_registro
+            """, (usuario_id, data))
+            tipos_registrados = [row[0] for row in cursor.fetchall()]
 
-            if existe:
+            if tipo not in TIPOS_PONTO:
+                flash("Tipo de ponto invalido.", "error")
+                return redirect(url_for('index'))
+
+            if tipo in {item.strip().lower() for item in tipos_registrados}:
                 flash(f"Você já registrou '{tipo}' hoje.", "warning")
-            else:
-                cursor.execute("""
-                    INSERT INTO ponto (usuario_id, data_registro, hora_registro, tipo)
-                    VALUES (%s, %s, %s, %s)
-                """, (usuario_id, data, hora, tipo))
-                conn.commit()
-                flash("Ponto registrado com sucesso!", "success")
+                return redirect(url_for('index'))
+
+            proximo_tipo = proximo_tipo_esperado(tipos_registrados)
+
+            if proximo_tipo is None:
+                flash("Todos os pontos de hoje ja foram registrados.", "warning")
+                return redirect(url_for('index'))
+
+            if tipo != proximo_tipo:
+                nomes = {
+                    'entrada': 'Entrada',
+                    'pausa': 'Pausa',
+                    'volta_pausa': 'Volta da Pausa',
+                    'saida': 'Saida'
+                }
+                flash(
+                    f"Sequencia invalida. O proximo registro deve ser '{nomes[proximo_tipo]}'.",
+                    "warning"
+                )
+                return redirect(url_for('index'))
+
+            cursor.execute("""
+                INSERT INTO ponto (usuario_id, data_registro, hora_registro, tipo)
+                VALUES (%s, %s, %s, %s)
+            """, (usuario_id, data, hora, tipo))
+            conn.commit()
+            flash("Ponto registrado com sucesso!", "success")
 
     except Exception as e:
         print("Erro ao registrar ponto:", e)
