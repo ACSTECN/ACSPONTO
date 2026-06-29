@@ -134,6 +134,44 @@ def validar_senha_e_migrar(cursor, usuario_id, senha_digitada, senha_armazenada)
     cursor.execute("UPDATE usuarios SET senha = %s WHERE id = %s", (nova_hash, usuario_id))
     return True
 
+
+def iniciar_sessao_usuario(user_id, nome, email, hierarquia):
+    session['logged_in'] = True
+    session['usuario_id'] = user_id
+    session['nome'] = nome
+    session['email'] = email
+    session['hierarquia'] = hierarquia
+    session.permanent = True
+
+
+@app.before_request
+def sincronizar_sessao_com_banco():
+    if not session.get('logged_in'):
+        return None
+
+    if request.endpoint in {'login', 'logout', 'static'}:
+        return None
+
+    usuario_id = session.get('usuario_id')
+    if not usuario_id:
+        session.clear()
+        return redirect(url_for('login'))
+
+    with conectar() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT logged_in, status FROM usuarios WHERE id = %s",
+            (usuario_id,)
+        )
+        usuario = cursor.fetchone()
+
+    if not usuario or not usuario[0] or (usuario[1] and usuario[1].lower() != 'ativo'):
+        session.clear()
+        flash('Sua sessão foi encerrada. Faça login novamente.', 'warning')
+        return redirect(url_for('login'))
+
+    return None
+
 @app.route('/')
 def index():
     if 'logged_in' in session:
@@ -278,26 +316,21 @@ def login():
                     flash('Usuário já está logado.', 'error')
                     return redirect(url_for('login'))
 
-                # Tudo OK, registra sessão
-                session['logged_in'] = True
-                session['usuario_id'] = user[0]
-                session['nome'] = user[1]
-                session['hierarquia'] = hierarquia
-                session.permanent = True
-
-                cursor.execute("UPDATE usuarios SET logged_in = true WHERE id = %s", (user[0],))
-                conn.commit()
-
+                destino = None
                 if tipo == 'admin' and hierarquia == 'admin':
-                    return redirect(url_for('painel'))
+                    destino = url_for('painel')
                 elif tipo == 'funcionario' and hierarquia in ['normal', 'staff', 'admin']:
-                    return redirect(url_for('index'))
+                    destino = url_for('index')
                 elif tipo == 'rh' and hierarquia == 'rh':
-                    return redirect(url_for('painel_rh'))
+                    destino = url_for('painel_rh')
                 else:
                     flash('Acesso negado para o tipo selecionado.', 'error')
-                    session.clear()
                     return redirect(url_for('login'))
+
+                iniciar_sessao_usuario(user[0], user[1], email, hierarquia)
+                cursor.execute("UPDATE usuarios SET logged_in = true WHERE id = %s", (user[0],))
+                conn.commit()
+                return redirect(destino)
 
         except Exception as e:
             print("Erro no login:", e)
