@@ -1064,7 +1064,7 @@ def abonar_todos_os_pontos():
             FROM usuarios
             WHERE equipe_id IN (SELECT id FROM equipes WHERE supervisor_id=%s)
         """, (session['usuario_id'],))
-        usuarios = cursor.fetchall()
+        usuarios = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
 
     if request.method == 'POST':
         usuario_id = request.form['usuario_id']
