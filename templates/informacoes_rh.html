@@ -279,7 +279,7 @@
   
 
   <div class="main">
-    <div id="colaboradores" class="section {% if not registros %}active{% endif %}">
+    <div id="colaboradores" class="section {% if aba_ativa == 'colaboradores' %}active{% endif %}">
 
 
       <h2><i class="fas fa-users"></i> Colaboradores</h2>
@@ -310,7 +310,7 @@
       <div id="paginacao"></div>
     </div>
 
-    <div id="ponto" class="section {% if registros %}active{% endif %}">
+    <div id="ponto" class="section {% if aba_ativa == 'ponto' %}active{% endif %}">
       <h2><i class="fas fa-clock"></i> Registros de Ponto</h2>
       <form method="GET" class="form-inline" action="/painel_rh">
 
@@ -339,11 +339,13 @@
             <th>Volta Pausa</th>
             <th>Saída</th>
             <th>Tempo Logado</th>
+            <th>Jornada Esperada</th>
+            <th>Saldo do Dia</th>
             <th>Motivo</th>
           </tr>
         </thead>
         <tbody>
-          {% for nome, data, entrada, pausa, volta, saida, tempo_logado, corr_entrada, corr_pausa, corr_volta, corr_saida, motivo in registros %}
+          {% for nome, data, entrada, pausa, volta, saida, tempo_logado, jornada_esperada, saldo_dia, corr_entrada, corr_pausa, corr_volta, corr_saida, motivo in registros %}
           <tr>
             <td>{{ nome }}</td>
             <td>{{ data.strftime('%d/%m/%Y') }}</td>
@@ -352,21 +354,35 @@
             <td>{{ volta }}{% if corr_volta %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
             <td>{{ saida }}{% if corr_saida %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
             <td>{{ tempo_logado }}</td>
+            <td>{{ jornada_esperada }}</td>
+            <td style="color: {% if saldo_dia.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_dia }}</td>
             <td>{{ motivo or '-' }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="totais">Total no período: <b>{{ total_horas }}</b></div>
+      <div class="totais">
+        Total logado: <b>{{ total_horas }}</b> |
+        Total esperado: <b>{{ total_esperado }}</b> |
+        Saldo do período: <b style="color: {% if saldo_final.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_final }}</b> |
+        Banco positivo: <b style="color: #7ee787;">{{ total_banco_positivo }}</b> |
+        Banco negativo: <b style="color: #ff8a80;">{{ total_banco_negativo }}</b>
+      </div>
       {% else %}
-      <p style="margin-top: 20px;">Nenhum registro encontrado para o filtro.</p>
+      <p style="margin-top: 20px;">
+        {% if data_inicio and data_fim %}
+          Nenhum registro encontrado para o filtro.
+        {% else %}
+          Selecione um período para visualizar os registros de ponto e o banco de horas.
+        {% endif %}
+      </p>
       {% endif %}
     </div>
       
        
     
 
-    <div id="escala" class="section {% if not registros %}active{% endif %}">
+    <div id="escala" class="section {% if aba_ativa == 'escala' %}active{% endif %}">
 
       <h2><i class="fas fa-calendar-alt"></i> Escalas Semanais</h2>
       <form method="POST" action="{{ url_for('definir_jornada') }}">
@@ -614,43 +630,46 @@ function imprimir(idTabela) {
   });
   {% endif %}
 
-  const ctx = document.getElementById('graficoFrequencia').getContext('2d');
-  const nomes = {{ ranking_frequencia | map(attribute=0) | list | tojson }};
-  const valores = {{ ranking_frequencia | map(attribute=1) | list | tojson }};
+  const graficoFrequencia = document.getElementById('graficoFrequencia');
+  if (graficoFrequencia) {
+    const ctx = graficoFrequencia.getContext('2d');
+    const nomes = {{ ranking_frequencia | default([], true) | map(attribute=0) | list | tojson }};
+    const valores = {{ ranking_frequencia | default([], true) | map(attribute=1) | list | tojson }};
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: nomes,
-      datasets: [{
-        label: 'Dias com Entrada',
-        data: valores,
-        borderWidth: 1,
-        backgroundColor: '#00bcd4'
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => `${ctx.raw} dias` } }
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: nomes,
+        datasets: [{
+          label: 'Dias com Entrada',
+          data: valores,
+          borderWidth: 1,
+          backgroundColor: '#00bcd4'
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: '#e0e0e0',
-            stepSize: 1
-          },
-          grid: { color: '#333' }
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `${ctx.raw} dias` } }
         },
-        x: {
-          ticks: { color: '#e0e0e0' },
-          grid: { display: false }
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#e0e0e0',
+              stepSize: 1
+            },
+            grid: { color: '#333' }
+          },
+          x: {
+            ticks: { color: '#e0e0e0' },
+            grid: { display: false }
+          }
         }
       }
-    }
-  });
+    });
+  }
 </script>
 
 

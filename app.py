@@ -144,6 +144,27 @@ def iniciar_sessao_usuario(user_id, nome, email, hierarquia):
     session.permanent = True
 
 
+def calcular_duracao_turno(entrada, saida, pausa=None, volta_pausa=None):
+    if not entrada or not saida:
+        return timedelta()
+
+    entrada_dt = datetime.combine(date.min, entrada)
+    saida_dt = datetime.combine(date.min, saida)
+    if saida_dt <= entrada_dt:
+        saida_dt += timedelta(days=1)
+
+    duracao = saida_dt - entrada_dt
+
+    if pausa and volta_pausa:
+        pausa_dt = datetime.combine(date.min, pausa)
+        volta_dt = datetime.combine(date.min, volta_pausa)
+        if volta_dt <= pausa_dt:
+            volta_dt += timedelta(days=1)
+        duracao -= (volta_dt - pausa_dt)
+
+    return duracao
+
+
 @app.before_request
 def sincronizar_sessao_com_banco():
     if not session.get('logged_in'):
@@ -612,6 +633,9 @@ def painel_rh():
         segundos = total_segundos % 60
         return f"{horas:02}:{minutos:02}:{segundos:02}"
 
+    def formatar_saldo(td):
+        return formatar_timedelta(td) if td >= timedelta() else f"-{formatar_timedelta(abs(td))}"
+
     usuarios = get_usuarios()
 
     with conectar() as conn:
@@ -621,10 +645,12 @@ def painel_rh():
         total_logado = timedelta()
         total_esperado = timedelta()
         saldo_final = "00:00:00"
+        total_banco_positivo = timedelta()
+        total_banco_negativo = timedelta()
 
         if data_inicio and data_fim:
             query = """
-                SELECT u.nome, p.data_registro,
+                SELECT u.id, u.nome, p.data_registro,
                     MIN(CASE WHEN p.tipo = 'entrada' THEN
                         CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
                     END) AS entrada,
@@ -653,45 +679,40 @@ def painel_rh():
                 params.append(usuario_id)
 
             query += """
-                GROUP BY u.nome, p.data_registro
+                GROUP BY u.id, u.nome, p.data_registro
                 ORDER BY u.nome, p.data_registro
             """
 
             cursor.execute(query, params)
             registros_fetch = cursor.fetchall()
 
-            escala_por_dia = {}
-            if usuario_id:
-                cursor.execute("""
-                    SELECT dia_semana, entrada, saida, pausa, volta_pausa
-                    FROM escalas
-                    WHERE usuario_id = %s
-                """, (usuario_id,))
-                escalas = cursor.fetchall()
+            cursor.execute("""
+                SELECT usuario_id, dia_semana, entrada, saida, pausa, volta_pausa
+                FROM escalas
+            """)
+            escala_por_usuario = {}
+            for escala_usuario_id, dia, entrada, saida, pausa, volta_pausa in cursor.fetchall():
+                escala_por_usuario.setdefault(escala_usuario_id, {})[dia.lower()] = calcular_duracao_turno(
+                    entrada, saida, pausa, volta_pausa
+                )
 
-                for dia, entrada, saida, pausa, volta_pausa in escalas:
-                    if entrada and saida:
-                        entrada_dt = datetime.combine(date.min, entrada)
-                        saida_dt = datetime.combine(date.min, saida)
-                        tempo = saida_dt - entrada_dt
-                        if pausa and volta_pausa:
-                            tempo -= datetime.combine(date.min, volta_pausa) - datetime.combine(date.min, pausa)
-                        escala_por_dia[dia.lower()] = tempo
-
-            for nome, data, entrada, saida, pausa, volta, corrigido_entrada, corrigido_pausa, corrigido_volta, corrigido_saida, motivo in registros_fetch:
+            for registro_usuario_id, nome, data, entrada, saida, pausa, volta, corrigido_entrada, corrigido_pausa, corrigido_volta, corrigido_saida, motivo in registros_fetch:
                 entrada_time = parse_hora(entrada)
                 saida_time = parse_hora(saida)
                 pausa_time = parse_hora(pausa)
                 volta_time = parse_hora(volta)
 
-                tempo_logado = timedelta()
-                if entrada_time and saida_time:
-                    tempo_logado = datetime.combine(date.min, saida_time) - datetime.combine(date.min, entrada_time)
-                    total_logado += tempo_logado
+                tempo_logado = calcular_duracao_turno(entrada_time, saida_time, pausa_time, volta_time)
+                total_logado += tempo_logado
 
                 dia_semana = nome_dia_semana(data)
-                jornada_esperada = escala_por_dia.get(dia_semana, timedelta(0))
+                jornada_esperada = escala_por_usuario.get(registro_usuario_id, {}).get(dia_semana, timedelta(0))
                 total_esperado += jornada_esperada
+                saldo_dia = tempo_logado - jornada_esperada
+                if saldo_dia >= timedelta():
+                    total_banco_positivo += saldo_dia
+                else:
+                    total_banco_negativo += abs(saldo_dia)
 
                 registros.append((
                     nome, data,
@@ -700,6 +721,8 @@ def painel_rh():
                     volta_time.strftime('%H:%M:%S') if volta_time else "-",
                     saida_time.strftime('%H:%M:%S') if saida_time else "-",
                     formatar_timedelta(tempo_logado),
+                    formatar_timedelta(jornada_esperada),
+                    formatar_saldo(saldo_dia),
                     bool(corrigido_entrada),
                     bool(corrigido_pausa),
                     bool(corrigido_volta),
@@ -708,7 +731,7 @@ def painel_rh():
                 ))
 
             saldo = total_logado - total_esperado
-            saldo_final = formatar_timedelta(saldo) if saldo >= timedelta() else f"-{formatar_timedelta(abs(saldo))}"
+            saldo_final = formatar_saldo(saldo)
 
     return render_template("informacoes_rh.html",
     usuarios=usuarios,
@@ -719,6 +742,8 @@ def painel_rh():
     total_horas=formatar_timedelta(total_logado),
     total_esperado=formatar_timedelta(total_esperado),
     saldo_final=saldo_final,
+    total_banco_positivo=formatar_timedelta(total_banco_positivo),
+    total_banco_negativo=formatar_timedelta(total_banco_negativo),
     atingiu_meta=(total_logado >= total_esperado),
     aba_ativa='ponto'  # <- ESSENCIAL PARA EXIBIR A ABA CERTA!
 )
@@ -755,9 +780,14 @@ def get_usuarios():
 
 @app.route("/visualizar_escala", methods=["GET"])
 def visualizar_escala():
+    if 'logged_in' not in session or session.get('hierarquia') != 'rh':
+        flash("Acesso negado!", "error")
+        return redirect(url_for('login'))
+
     usuario_id = request.args.get("usuario_id")
     usuarios = get_usuarios()
     escala = []
+    ordem_dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 
     nome_colaborador = None
     if usuario_id:
@@ -767,8 +797,6 @@ def visualizar_escala():
                 nome_colaborador = u["Nome"]
                 break
 
-            nome_colaborador = None
-
 
         # Busca escala no banco
         with conectar() as conn:
@@ -777,18 +805,16 @@ def visualizar_escala():
                 SELECT dia_semana, entrada, pausa, volta_pausa, saida
                 FROM escalas
                 WHERE usuario_id = %s
-                ORDER BY 
-                    CASE dia_semana
-                        WHEN 'segunda' THEN 1
-                        WHEN 'terca' THEN 2
-                        WHEN 'quarta' THEN 3
-                        WHEN 'quinta' THEN 4
-                        WHEN 'sexta' THEN 5
-                        WHEN 'sabado' THEN 6
-                        WHEN 'domingo' THEN 7
-                    END
             """, (usuario_id,))
-            escala = cursor.fetchall()
+            escala_mapeada = {
+                row[0].strip().lower(): (row[1], row[2], row[3], row[4])
+                for row in cursor.fetchall()
+                if row[0]
+            }
+            escala = [
+                (dia, *escala_mapeada.get(dia, (None, None, None, None)))
+                for dia in ordem_dias
+            ]
 
     return render_template("informacoes_rh.html", 
         usuarios=usuarios, 
