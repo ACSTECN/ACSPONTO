@@ -612,23 +612,18 @@ def painel_rh():
         segundos = total_segundos % 60
         return f"{horas:02}:{minutos:02}:{segundos:02}"
 
+    usuarios = get_usuarios()
+
     with conectar() as conn:
         cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT u.id, u.nome, u.email, u.hierarquia, u.status, e.nome_equipe
-            FROM usuarios u
-            LEFT JOIN equipes e ON u.equipe_id = e.id
-        """)
-        usuarios = cursor.fetchall()
 
         registros = []
         total_logado = timedelta()
         total_esperado = timedelta()
         saldo_final = "00:00:00"
 
-        if data_inicio and data_fim and usuario_id:
-            cursor.execute("""
+        if data_inicio and data_fim:
+            query = """
                 SELECT u.nome, p.data_registro,
                     MIN(CASE WHEN p.tipo = 'entrada' THEN
                         CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
@@ -649,28 +644,39 @@ def painel_rh():
                     MAX(CASE WHEN p.tipo = 'entrada' THEN p.motivo_correcao END) AS motivo_entrada
                 FROM ponto p
                 JOIN usuarios u ON p.usuario_id = u.id
-                WHERE p.usuario_id = %s AND p.data_registro BETWEEN %s AND %s
+                WHERE p.data_registro BETWEEN %s AND %s
+            """
+            params = [data_inicio, data_fim]
+
+            if usuario_id:
+                query += " AND p.usuario_id = %s"
+                params.append(usuario_id)
+
+            query += """
                 GROUP BY u.nome, p.data_registro
-                ORDER BY p.data_registro
-            """, (usuario_id, data_inicio, data_fim))
+                ORDER BY u.nome, p.data_registro
+            """
+
+            cursor.execute(query, params)
             registros_fetch = cursor.fetchall()
 
-            cursor.execute("""
-                SELECT dia_semana, entrada, saida, pausa, volta_pausa
-                FROM escalas
-                WHERE usuario_id = %s
-            """, (usuario_id,))
-            escalas = cursor.fetchall()
-
             escala_por_dia = {}
-            for dia, entrada, saida, pausa, volta_pausa in escalas:
-                if entrada and saida:
-                    entrada_dt = datetime.combine(date.min, entrada)
-                    saida_dt = datetime.combine(date.min, saida)
-                    tempo = saida_dt - entrada_dt
-                    if pausa and volta_pausa:
-                        tempo -= datetime.combine(date.min, volta_pausa) - datetime.combine(date.min, pausa)
-                    escala_por_dia[dia.lower()] = tempo
+            if usuario_id:
+                cursor.execute("""
+                    SELECT dia_semana, entrada, saida, pausa, volta_pausa
+                    FROM escalas
+                    WHERE usuario_id = %s
+                """, (usuario_id,))
+                escalas = cursor.fetchall()
+
+                for dia, entrada, saida, pausa, volta_pausa in escalas:
+                    if entrada and saida:
+                        entrada_dt = datetime.combine(date.min, entrada)
+                        saida_dt = datetime.combine(date.min, saida)
+                        tempo = saida_dt - entrada_dt
+                        if pausa and volta_pausa:
+                            tempo -= datetime.combine(date.min, volta_pausa) - datetime.combine(date.min, pausa)
+                        escala_por_dia[dia.lower()] = tempo
 
             for nome, data, entrada, saida, pausa, volta, corrigido_entrada, corrigido_pausa, corrigido_volta, corrigido_saida, motivo in registros_fetch:
                 entrada_time = parse_hora(entrada)
