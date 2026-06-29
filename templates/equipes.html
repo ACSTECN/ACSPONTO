@@ -176,7 +176,7 @@
       {% for equipe in equipes %}
       <div class="equipe">
         <h3>{{ equipe.NomeEquipe }}</h3>
-        <p><strong>👨‍💼 Supervisor:</strong> {{ equipe.Supervisor or 'Sem supervisor' }}</p>
+        <p><strong>👨‍💼 Supervisores:</strong> {{ equipe.Supervisor or 'Sem supervisor' }}</p>
         <p><strong>👥 Membros:</strong>
           {% if membros_por_equipe[equipe.ID] %}
               {{ membros_por_equipe[equipe.ID] | map(attribute='Nome') | join(', ') }}
@@ -187,7 +187,7 @@
         <button class="botao-editar"
                 data-id="{{ equipe.ID }}"
                 data-nome="{{ equipe.NomeEquipe }}"
-                data-supervisor="{{ equipe.SupervisorID }}"
+                data-supervisores='{{ equipe.SupervisorIDs | tojson }}'
                 data-membros='{{ membros_por_equipe[equipe.ID] | tojson }}'>
           <i class="fas fa-pen-to-square"></i> Editar Equipe
         </button>
@@ -204,8 +204,8 @@
         <input type="hidden" name="membros" id="inputMembrosFinal">
         <label for="modalNomeEquipe">Nome da Equipe:</label>
         <input type="text" name="nome_equipe" id="modalNomeEquipe" required>
-        <label for="modalSupervisor">Supervisor:</label>
-        <select name="supervisor_id" id="modalSupervisor">
+        <label for="modalSupervisor">Supervisores:</label>
+        <select name="supervisor_ids" id="modalSupervisor" multiple size="6">
           {% for usuario in todos_usuarios %}
           <option value="{{ usuario.ID }}">{{ usuario.Nome }}</option>
           {% endfor %}
@@ -228,13 +228,16 @@
         botao.addEventListener('click', () => {
           const id = botao.getAttribute('data-id');
           const nome = botao.getAttribute('data-nome');
-          const supervisorID = botao.getAttribute('data-supervisor');
+          const supervisorIDs = JSON.parse(botao.getAttribute('data-supervisores') || '[]');
           const membros = JSON.parse(botao.getAttribute('data-membros'));
 
           document.getElementById('titulo-modal').innerText = "Editar Equipe";
           document.getElementById('modalEquipeID').value = id;
           document.getElementById('modalNomeEquipe').value = nome;
-          document.getElementById('modalSupervisor').value = supervisorID;
+          const supervisorSelect = document.getElementById('modalSupervisor');
+          for (let opt of supervisorSelect.options) {
+            opt.selected = supervisorIDs.includes(Number(opt.value));
+          }
 
           const lista = document.getElementById('lista-membros');
           lista.innerHTML = '';
@@ -249,25 +252,29 @@
           for (let opt of select.options) {
             opt.selected = false;
             opt.style.display = 'block';
-            if (opt.value === supervisorID) opt.style.display = 'none';
           }
 
+          atualizarOpcoesMembros();
           atualizarMembrosHidden();
           document.getElementById('modalEditar').style.display = 'flex';
         });
       });
+
+      document.getElementById('modalSupervisor').addEventListener('change', atualizarOpcoesMembros);
     });
 
     function abrirNovoModal() {
       document.getElementById('titulo-modal').innerText = "Nova Equipe";
       document.getElementById('modalEquipeID').value = '';
       document.getElementById('modalNomeEquipe').value = '';
-      document.getElementById('modalSupervisor').selectedIndex = 0;
+      const supervisorSelect = document.getElementById('modalSupervisor');
+      for (let opt of supervisorSelect.options) opt.selected = false;
       document.getElementById('lista-membros').innerHTML = '';
 
       const select = document.getElementById('selectNovosMembros');
       for (let opt of select.options) opt.selected = false;
 
+      atualizarOpcoesMembros();
       atualizarMembrosHidden();
       document.getElementById('modalEditar').style.display = 'flex';
     }
@@ -276,14 +283,29 @@
       document.getElementById('modalEditar').style.display = 'none';
       document.getElementById('modalEquipeID').value = '';
       document.getElementById('modalNomeEquipe').value = '';
-      document.getElementById('modalSupervisor').selectedIndex = 0;
+      const supervisorSelect = document.getElementById('modalSupervisor');
+      for (let opt of supervisorSelect.options) opt.selected = false;
       document.getElementById('lista-membros').innerHTML = '';
+      atualizarOpcoesMembros();
       atualizarMembrosHidden();
     }
 
     function removerMembro(button) {
       button.parentElement.remove();
       atualizarMembrosHidden();
+    }
+
+    function atualizarOpcoesMembros() {
+      const supervisorIds = Array.from(document.getElementById('modalSupervisor').selectedOptions).map(e => e.value);
+      const select = document.getElementById('selectNovosMembros');
+      for (let opt of select.options) {
+        if (supervisorIds.includes(opt.value)) {
+          opt.selected = false;
+          opt.style.display = 'none';
+        } else {
+          opt.style.display = 'block';
+        }
+      }
     }
 
     function atualizarMembrosHidden() {

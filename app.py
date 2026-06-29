@@ -52,6 +52,72 @@ def proximo_tipo_esperado(tipos_registrados):
     return None
 
 
+def tabela_equipe_supervisores_existe(cursor):
+    cursor.execute("SELECT to_regclass('public.equipe_supervisores')")
+    return cursor.fetchone()[0] is not None
+
+
+def listar_supervisores_da_equipe(cursor, equipe_id, usa_relacao_supervisores):
+    supervisores = []
+
+    if usa_relacao_supervisores:
+        cursor.execute("""
+            SELECT u.id, u.nome
+            FROM equipe_supervisores es
+            JOIN usuarios u ON u.id = es.usuario_id
+            WHERE es.equipe_id = %s
+            ORDER BY u.nome
+        """, (equipe_id,))
+        supervisores = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
+
+    if supervisores:
+        return supervisores
+
+    cursor.execute("""
+        SELECT u.id, u.nome
+        FROM equipes e
+        JOIN usuarios u ON u.id = e.supervisor_id
+        WHERE e.id = %s
+    """, (equipe_id,))
+    return [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
+
+
+def salvar_supervisores_equipe(cursor, equipe_id, supervisor_ids, usa_relacao_supervisores):
+    supervisor_ids = list(dict.fromkeys(supervisor_ids))
+    supervisor_principal = supervisor_ids[0] if supervisor_ids else None
+
+    cursor.execute(
+        "UPDATE equipes SET supervisor_id = %s WHERE id = %s",
+        (supervisor_principal, equipe_id)
+    )
+
+    if usa_relacao_supervisores:
+        cursor.execute("DELETE FROM equipe_supervisores WHERE equipe_id = %s", (equipe_id,))
+        if supervisor_ids:
+            cursor.executemany(
+                """
+                INSERT INTO equipe_supervisores (equipe_id, usuario_id)
+                VALUES (%s, %s)
+                """,
+                [(equipe_id, supervisor_id) for supervisor_id in supervisor_ids]
+            )
+
+
+def buscar_ids_equipes_supervisionadas(cursor, usuario_id, usa_relacao_supervisores):
+    if usa_relacao_supervisores:
+        cursor.execute("""
+            SELECT DISTINCT e.id
+            FROM equipes e
+            LEFT JOIN equipe_supervisores es ON es.equipe_id = e.id
+            WHERE e.supervisor_id = %s OR es.usuario_id = %s
+            ORDER BY e.id
+        """, (usuario_id, usuario_id))
+    else:
+        cursor.execute("SELECT id FROM equipes WHERE supervisor_id = %s ORDER BY id", (usuario_id,))
+
+    return [row[0] for row in cursor.fetchall()]
+
+
 def validar_senha_e_migrar(cursor, usuario_id, senha_digitada, senha_armazenada):
     if not senha_armazenada:
         return False
@@ -705,17 +771,25 @@ def gerenciar_equipes():
 
     with conectar() as conn:
         cursor = conn.cursor()
+        usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
         cursor.execute("""
-            SELECT e.id, e.nome_equipe, u.nome AS supervisor, e.supervisor_id
+            SELECT e.id, e.nome_equipe, e.supervisor_id
             FROM equipes e
-            LEFT JOIN usuarios u ON e.supervisor_id = u.id
+            ORDER BY e.nome_equipe
         """)
         equipes = [
             {
                 'ID': row[0],
                 'NomeEquipe': row[1],
-                'Supervisor': row[2],
-                'SupervisorID': row[3]
+                'Supervisor': ', '.join(
+                    supervisor['Nome']
+                    for supervisor in listar_supervisores_da_equipe(cursor, row[0], usa_relacao_supervisores)
+                ),
+                'SupervisorID': row[2],
+                'SupervisorIDs': [
+                    supervisor['ID']
+                    for supervisor in listar_supervisores_da_equipe(cursor, row[0], usa_relacao_supervisores)
+                ]
             }
             for row in cursor.fetchall()
         ]
@@ -750,19 +824,23 @@ def atualizar_equipe():
     dados = request.form
     equipe_id = int(dados.get('equipe_id'))
     nome_novo = dados.get('nome_equipe')
-    supervisor_id = int(dados.get('supervisor_id')) if dados.get('supervisor_id') else None
+    supervisor_ids = [int(valor) for valor in request.form.getlist('supervisor_ids') if valor]
+    if not supervisor_ids and dados.get('supervisor_id'):
+        supervisor_ids = [int(dados.get('supervisor_id'))]
     novos_membros = request.form.getlist('membros')  # Lista de IDs (strings)
 
     try:
         with conectar() as conn:
             cursor = conn.cursor()
+            usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
 
-            # Atualiza nome da equipe e supervisor
+            # Atualiza nome da equipe e supervisores
             cursor.execute("""
                 UPDATE equipes
-                SET nome_equipe = %s, supervisor_id = %s
+                SET nome_equipe = %s
                 WHERE id = %s
-            """, (nome_novo, supervisor_id, equipe_id))
+            """, (nome_novo, equipe_id))
+            salvar_supervisores_equipe(cursor, equipe_id, supervisor_ids, usa_relacao_supervisores)
 
             # Remove todos os membros da equipe atual
             cursor.execute("""
@@ -805,6 +883,7 @@ def equipe_dados(equipe_id):
 
     with conectar() as conn:
         cursor = conn.cursor()
+        usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
         cursor.execute("SELECT id, nome_equipe, supervisor_id FROM equipes WHERE id = %s", (equipe_id,))
         equipe = cursor.fetchone()
         if not equipe:
@@ -812,11 +891,13 @@ def equipe_dados(equipe_id):
 
         cursor.execute("SELECT id FROM usuarios WHERE equipe_id = %s", (equipe_id,))
         membros = [row[0] for row in cursor.fetchall()]
+        supervisor_ids = [supervisor['ID'] for supervisor in listar_supervisores_da_equipe(cursor, equipe_id, usa_relacao_supervisores)]
 
     return jsonify({
         'id': equipe[0],
         'nome': equipe[1],
         'supervisor_id': equipe[2],
+        'supervisor_ids': supervisor_ids,
         'membros': membros
     })
 @app.route('/editar-equipe', methods=['POST'])
@@ -826,7 +907,9 @@ def editar_equipe():
 
     equipe_id = request.form.get('equipe_id')
     nome = request.form.get('nome_equipe')
-    supervisor_id = request.form.get('supervisor_id')
+    supervisor_ids = [int(valor) for valor in request.form.getlist('supervisor_ids') if valor]
+    if not supervisor_ids and request.form.get('supervisor_id'):
+        supervisor_ids = [int(request.form.get('supervisor_id'))]
     membros_json = request.form.get('membros')
 
     import json
@@ -838,21 +921,22 @@ def editar_equipe():
     try:
         with conectar() as conn:
             cursor = conn.cursor()
-
-            # Converte supervisor_id para int se existir
-            supervisor_id = int(supervisor_id) if supervisor_id else None
+            usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
+            supervisor_principal = supervisor_ids[0] if supervisor_ids else None
 
             if equipe_id:  # Atualizar equipe existente
                 cursor.execute(
                     "UPDATE equipes SET nome_equipe=%s, supervisor_id=%s WHERE id=%s",
-                    (nome, supervisor_id, equipe_id)
+                    (nome, supervisor_principal, equipe_id)
                 )
             else:  # Nova equipe
                 cursor.execute(
                     "INSERT INTO equipes (nome_equipe, supervisor_id) VALUES (%s, %s) RETURNING id",
-                    (nome, supervisor_id)
+                    (nome, supervisor_principal)
                 )
                 equipe_id = cursor.fetchone()[0]
+
+            salvar_supervisores_equipe(cursor, equipe_id, supervisor_ids, usa_relacao_supervisores)
 
             # Remove todos os membros anteriores
             cursor.execute("UPDATE usuarios SET equipe_id=NULL WHERE equipe_id=%s", (equipe_id,))
@@ -886,17 +970,19 @@ def visualizar_pontos():
 
     with conectar() as conn:
         cursor = conn.cursor()
+        usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
+        equipes_ids = buscar_ids_equipes_supervisionadas(cursor, usuario_id, usa_relacao_supervisores)
 
-        cursor.execute("SELECT id FROM equipes WHERE supervisor_id = %s", (usuario_id,))
-        equipe = cursor.fetchone()
-
-        if not equipe:
+        if not equipes_ids:
             flash("Você não é supervisor de nenhuma equipe.", "warning")
             return redirect(url_for('index'))
 
-        equipe_id = equipe[0]
-
-        cursor.execute("SELECT id, nome FROM usuarios WHERE equipe_id = %s", (equipe_id,))
+        cursor.execute("""
+            SELECT id, nome
+            FROM usuarios
+            WHERE equipe_id = ANY(%s)
+            ORDER BY nome
+        """, (equipes_ids,))
         usuarios = cursor.fetchall()
 
         query = """
@@ -907,9 +993,9 @@ def visualizar_pontos():
             FROM ponto p
             JOIN usuarios u ON p.usuario_id = u.id
             LEFT JOIN usuarios u2 ON p.corrigido_por = u2.id
-            WHERE u.equipe_id = %s
+            WHERE u.equipe_id = ANY(%s)
         """
-        params = [equipe_id]
+        params = [equipes_ids]
 
         if data_filtro:
             query += " AND p.data_registro = %s"
@@ -1059,12 +1145,19 @@ def abonar_todos_os_pontos():
 
     with conectar() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, nome
-            FROM usuarios
-            WHERE equipe_id IN (SELECT id FROM equipes WHERE supervisor_id=%s)
-        """, (session['usuario_id'],))
-        usuarios = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
+        usa_relacao_supervisores = tabela_equipe_supervisores_existe(cursor)
+        equipes_ids = buscar_ids_equipes_supervisionadas(cursor, session['usuario_id'], usa_relacao_supervisores)
+
+        if not equipes_ids:
+            usuarios = []
+        else:
+            cursor.execute("""
+                SELECT id, nome
+                FROM usuarios
+                WHERE equipe_id = ANY(%s)
+                ORDER BY nome
+            """, (equipes_ids,))
+            usuarios = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
 
     if request.method == 'POST':
         usuario_id = request.form['usuario_id']
