@@ -710,11 +710,19 @@ def gerenciar_equipes():
             FROM equipes e
             LEFT JOIN usuarios u ON e.supervisor_id = u.id
         """)
-        equipes = cursor.fetchall()
+        equipes = [
+            {
+                'ID': row[0],
+                'NomeEquipe': row[1],
+                'Supervisor': row[2],
+                'SupervisorID': row[3]
+            }
+            for row in cursor.fetchall()
+        ]
 
         membros_por_equipe = {}
         for equipe in equipes:
-            equipe_id = equipe[0]
+            equipe_id = equipe['ID']
             cursor.execute("SELECT id, nome FROM usuarios WHERE equipe_id = %s", (equipe_id,))
             membros = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
             membros_por_equipe[equipe_id] = membros
@@ -722,7 +730,7 @@ def gerenciar_equipes():
 
         # Corrigido: traz todos os usuários ordenados por nome
         cursor.execute("SELECT id, nome FROM usuarios ORDER BY nome")
-        usuarios = cursor.fetchall()
+        usuarios = [{'ID': row[0], 'Nome': row[1]} for row in cursor.fetchall()]
 
     return render_template(
         "equipes.html",
