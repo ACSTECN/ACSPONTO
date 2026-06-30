@@ -165,6 +165,62 @@ def calcular_duracao_turno(entrada, saida, pausa=None, volta_pausa=None):
     return duracao
 
 
+def obter_dashboard_admin(cursor):
+    cursor.execute("""
+        SELECT
+            COUNT(*) AS total_usuarios,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'ativo') AS usuarios_ativos,
+            COUNT(*) FILTER (WHERE COALESCE(logged_in, false) = true) AS usuarios_online,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'admin') AS total_admins,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'rh') AS total_rh,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'staff') AS total_staff,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'normal') AS total_colaboradores,
+            COUNT(*) FILTER (WHERE equipe_id IS NULL) AS usuarios_sem_equipe
+        FROM usuarios
+    """)
+    (
+        total_usuarios,
+        usuarios_ativos,
+        usuarios_online,
+        total_admins,
+        total_rh,
+        total_staff,
+        total_colaboradores,
+        usuarios_sem_equipe,
+    ) = cursor.fetchone()
+
+    cursor.execute("SELECT COUNT(*) FROM equipes")
+    total_equipes = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT COALESCE(e.nome_equipe, 'Sem equipe') AS nome_equipe, COUNT(u.id) AS total
+        FROM usuarios u
+        LEFT JOIN equipes e ON e.id = u.equipe_id
+        GROUP BY COALESCE(e.nome_equipe, 'Sem equipe')
+        ORDER BY total DESC, nome_equipe
+        LIMIT 5
+    """)
+    equipes_resumo = [
+        {'nome': row[0], 'total': row[1]}
+        for row in cursor.fetchall()
+    ]
+
+    return {
+        'total_usuarios': total_usuarios,
+        'usuarios_ativos': usuarios_ativos,
+        'usuarios_online': usuarios_online,
+        'total_admins': total_admins,
+        'total_rh': total_rh,
+        'total_staff': total_staff,
+        'total_colaboradores': total_colaboradores,
+        'usuarios_sem_equipe': usuarios_sem_equipe,
+        'total_equipes': total_equipes,
+        'equipes_resumo': equipes_resumo,
+        'percentual_online': round((usuarios_online / total_usuarios) * 100) if total_usuarios else 0,
+        'percentual_ativos': round((usuarios_ativos / total_usuarios) * 100) if total_usuarios else 0,
+    }
+
+
 @app.before_request
 def sincronizar_sessao_com_banco():
     if not session.get('logged_in'):
@@ -372,9 +428,8 @@ def painel():
         with conectar() as conn:
             cursor = conn.cursor()
 
-            # Consulta total de usuários
-            cursor.execute("SELECT COUNT(*) FROM usuarios")
-            total_usuarios = cursor.fetchone()[0]
+            dashboard = obter_dashboard_admin(cursor)
+            total_usuarios = dashboard['total_usuarios']
             total_pages = (total_usuarios + per_page - 1) // per_page
 
             # Consulta usuários da página atual
@@ -394,7 +449,8 @@ def painel():
             'admin.html',
             usuarios=usuarios_formatados,
             page=page,
-            total_pages=total_pages
+            total_pages=total_pages,
+            dashboard=dashboard
         )
 
     flash("Acesso não autorizado.", "error")
@@ -471,6 +527,7 @@ def gerenciar_usuarios():
 
     with conectar() as conn:
         cursor = conn.cursor()
+        dashboard = obter_dashboard_admin(cursor)
         cursor.execute("SELECT email, hierarquia, status, logged_in FROM usuarios")
         usuarios = cursor.fetchall()
         usuarios_formatados = [
@@ -478,7 +535,7 @@ def gerenciar_usuarios():
         ]
 
     # Adiciona valores padrão para evitar erro no template
-    return render_template('admin.html', usuarios=usuarios_formatados, page=1, total_pages=1)
+    return render_template('admin.html', usuarios=usuarios_formatados, page=1, total_pages=1, dashboard=dashboard)
 
 
 
