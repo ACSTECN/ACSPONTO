@@ -862,6 +862,7 @@ def painel_rh():
     data_inicio = request.args.get('data_inicio')
     data_fim = request.args.get('data_fim')
     usuario_id = request.args.get('usuario_id')
+    equipe_id = request.args.get('equipe_id')
 
     def parse_hora(hora):
         if isinstance(hora, time):
@@ -887,6 +888,14 @@ def painel_rh():
         return formatar_timedelta(td) if td >= timedelta() else f"-{formatar_timedelta(abs(td))}"
 
     usuarios = get_usuarios()
+    equipes = buscar_equipes()
+    resumo_colaboradores = {
+        'total': len(usuarios),
+        'ativos': sum(1 for usuario in usuarios if (usuario.get('Status') or '').lower() == 'ativo'),
+        'staff': sum(1 for usuario in usuarios if (usuario.get('Hierarquia') or '').lower() == 'staff'),
+        'rh': sum(1 for usuario in usuarios if (usuario.get('Hierarquia') or '').lower() == 'rh'),
+        'sem_equipe': sum(1 for usuario in usuarios if not usuario.get('EquipeID')),
+    }
 
     with conectar() as conn:
         cursor = conn.cursor()
@@ -897,6 +906,9 @@ def painel_rh():
         saldo_final = "00:00:00"
         total_banco_positivo = timedelta()
         total_banco_negativo = timedelta()
+        quantidade_registros = 0
+        total_colaboradores_filtrados = 0
+        media_horas = "00:00:00"
 
         if data_inicio and data_fim:
             query = """
@@ -927,6 +939,9 @@ def painel_rh():
             if usuario_id:
                 query += " AND p.usuario_id = %s"
                 params.append(usuario_id)
+            if equipe_id:
+                query += " AND u.equipe_id = %s"
+                params.append(equipe_id)
 
             query += """
                 GROUP BY u.id, u.nome, p.data_registro
@@ -935,6 +950,8 @@ def painel_rh():
 
             cursor.execute(query, params)
             registros_fetch = cursor.fetchall()
+            quantidade_registros = len(registros_fetch)
+            total_colaboradores_filtrados = len({row[0] for row in registros_fetch})
 
             cursor.execute("""
                 SELECT usuario_id, dia_semana, entrada, saida, pausa, volta_pausa
@@ -982,11 +999,15 @@ def painel_rh():
 
             saldo = total_logado - total_esperado
             saldo_final = formatar_saldo(saldo)
+            if quantidade_registros:
+                media_horas = formatar_timedelta(total_logado / quantidade_registros)
 
     return render_template("informacoes_rh.html",
     usuarios=usuarios,
+    equipes=equipes,
     registros=registros,
     usuario_id=usuario_id,
+    equipe_id=equipe_id,
     data_inicio=data_inicio,
     data_fim=data_fim,
     total_horas=formatar_timedelta(total_logado),
@@ -994,6 +1015,10 @@ def painel_rh():
     saldo_final=saldo_final,
     total_banco_positivo=formatar_timedelta(total_banco_positivo),
     total_banco_negativo=formatar_timedelta(total_banco_negativo),
+    quantidade_registros=quantidade_registros,
+    total_colaboradores_filtrados=total_colaboradores_filtrados,
+    media_horas=media_horas,
+    resumo_colaboradores=resumo_colaboradores,
     atingiu_meta=(total_logado >= total_esperado),
     aba_ativa='ponto'  # <- ESSENCIAL PARA EXIBIR A ABA CERTA!
 )
@@ -1020,6 +1045,7 @@ def get_usuarios():
                 u.email AS "Email",
                 u.hierarquia AS "Hierarquia",
                 u.status AS "Status",
+                u.equipe_id AS "EquipeID",
                 e.nome_equipe AS "NomeEquipe"
             FROM usuarios u
             LEFT JOIN equipes e ON u.equipe_id = e.id
@@ -1035,7 +1061,9 @@ def visualizar_escala():
         return redirect(url_for('login'))
 
     usuario_id = request.args.get("usuario_id")
+    equipe_id = request.args.get("equipe_id")
     usuarios = get_usuarios()
+    equipes = buscar_equipes()
     escala = []
     ordem_dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 
@@ -1068,8 +1096,10 @@ def visualizar_escala():
 
     return render_template("informacoes_rh.html", 
         usuarios=usuarios, 
+        equipes=equipes,
         escala=escala, 
         usuario_id=usuario_id, 
+        equipe_id=equipe_id,
         nome_colaborador=nome_colaborador,
         aba_ativa='visualizar_escala'
     )

@@ -123,6 +123,52 @@
       box-shadow: 0 0 8px #00bcd4aa;
     }
 
+    .cards-resumo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .card-resumo {
+      background: linear-gradient(180deg, #203246, #182432);
+      border: 1px solid #2e445c;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .card-resumo strong {
+      display: block;
+      color: #fff;
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+
+    .card-resumo span {
+      color: #8ecfe0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .toolbar-filtros {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin: 14px 0 18px;
+    }
+
+    .toolbar-filtros input,
+    .toolbar-filtros select {
+      padding: 10px;
+      border-radius: 8px;
+      background: #213244;
+      border: 1px solid #35506b;
+      color: #eee;
+      min-width: 220px;
+    }
+
     .scale-row {
       background-color: #1e2a38;
       padding: 10px;
@@ -283,7 +329,22 @@
 
 
       <h2><i class="fas fa-users"></i> Colaboradores</h2>
-      <input type="text" id="filtro-nome" placeholder="Filtrar por nome...">
+      <div class="cards-resumo">
+        <div class="card-resumo"><strong>{{ resumo_colaboradores.total if resumo_colaboradores else usuarios|length }}</strong><span>Total de colaboradores</span></div>
+        <div class="card-resumo"><strong>{{ resumo_colaboradores.ativos if resumo_colaboradores else 0 }}</strong><span>Ativos</span></div>
+        <div class="card-resumo"><strong>{{ resumo_colaboradores.staff if resumo_colaboradores else 0 }}</strong><span>Supervisores</span></div>
+        <div class="card-resumo"><strong>{{ resumo_colaboradores.rh if resumo_colaboradores else 0 }}</strong><span>RH</span></div>
+        <div class="card-resumo"><strong>{{ resumo_colaboradores.sem_equipe if resumo_colaboradores else 0 }}</strong><span>Sem equipe</span></div>
+      </div>
+      <div class="toolbar-filtros">
+        <input type="text" id="filtro-nome" placeholder="Filtrar por nome...">
+        <select id="filtro-equipe-colaboradores">
+          <option value="">Todas as equipes</option>
+          {% for equipe in equipes or [] %}
+            <option value="{{ equipe.NomeEquipe }}">{{ equipe.NomeEquipe }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <table id="tabela-colaboradores">
         <thead>
           <tr>
@@ -296,7 +357,7 @@
         </thead>
         <tbody>
           {% for u in usuarios %}
-          <tr>
+          <tr data-equipe="{{ u.NomeEquipe or '' }}">
             <td>{{ u.Nome }}</td>
             <td>{{ u.Email }}</td>
             <td>{{ u.NomeEquipe or '---' }}</td>
@@ -316,10 +377,16 @@
 
         <input type="date" name="data_inicio" value="{{ data_inicio or '' }}">
         <input type="date" name="data_fim" value="{{ data_fim or '' }}">
-        <select name="usuario_id">
+        <select name="equipe_id" id="filtro-equipe-ponto" onchange="filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto')">
+          <option value="">-- Todas as equipes --</option>
+          {% for equipe in equipes or [] %}
+            <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
+          {% endfor %}
+        </select>
+        <select name="usuario_id" id="select-usuario-ponto">
           <option value="">-- Todos os usuários --</option>
           {% for u in usuarios %}
-            <option value="{{ u.ID }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
+            <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
           {% endfor %}
         </select>
         <button class="btn" type="submit">Filtrar</button>
@@ -327,6 +394,19 @@
           <button type="button" class="btn" onclick="imprimir('tabela-ponto')"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
         {% endif %}
       </form>
+
+      {% if registros %}
+      <div class="cards-resumo">
+        <div class="card-resumo"><strong>{{ quantidade_registros or 0 }}</strong><span>Registros no período</span></div>
+        <div class="card-resumo"><strong>{{ total_colaboradores_filtrados or 0 }}</strong><span>Colaboradores no filtro</span></div>
+        <div class="card-resumo"><strong>{{ total_horas or '00:00:00' }}</strong><span>Total logado</span></div>
+        <div class="card-resumo"><strong>{{ media_horas or '00:00:00' }}</strong><span>Média por dia</span></div>
+        <div class="card-resumo"><strong style="color: {% if saldo_final and saldo_final.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_final or '00:00:00' }}</strong><span>Saldo no período</span></div>
+      </div>
+      <div class="toolbar-filtros">
+        <input type="text" id="filtro-ponto-busca" placeholder="Buscar nas linhas de ponto...">
+      </div>
+      {% endif %}
   
       {% if registros %}
       <table id="tabela-ponto">
@@ -388,9 +468,15 @@
       <form method="POST" action="{{ url_for('definir_jornada') }}">
         <div class="scale-controls">
           <label>Colaborador:</label>
-          <select name="usuario_id" required>
+          <select id="filtro-equipe-definir" onchange="filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir')">
+            <option value="">-- Filtrar equipe --</option>
+            {% for equipe in equipes or [] %}
+              <option value="{{ equipe.ID }}">{{ equipe.NomeEquipe }}</option>
+            {% endfor %}
+          </select>
+          <select name="usuario_id" id="select-usuario-definir" required>
             <option value="">-- Escolha um colaborador --</option>
-            {% for u in usuarios %}<option value="{{ u.ID }}">{{ u.Nome }}</option>{% endfor %}
+            {% for u in usuarios %}<option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}">{{ u.Nome }}</option>{% endfor %}
           </select>
           <label>Modelo:</label>
           <select id="modelo" onchange="aplicarModelo()">
@@ -419,11 +505,18 @@
     <div id="visualizar_escala" class="section {% if aba_ativa == 'visualizar_escala' %}active{% endif %}">
       <h2><i class="fas fa-calendar-check"></i> Visualizar Escala</h2>
       <form method="GET" class="form-inline" action="/visualizar_escala">
+        <label>Equipe:</label>
+        <select name="equipe_id" id="filtro-equipe-escala" onchange="filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala')">
+          <option value="">-- Todas as equipes --</option>
+          {% for equipe in equipes or [] %}
+            <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
+          {% endfor %}
+        </select>
         <label>Colaborador:</label>
-        <select name="usuario_id" required>
+        <select name="usuario_id" id="select-usuario-escala" required>
           <option value="">-- Escolha um colaborador --</option>
           {% for u in usuarios %}
-            <option value="{{ u.ID }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
+            <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
           {% endfor %}
         </select>
         <button type="submit" class="btn">Ver Escala</button>
@@ -435,6 +528,9 @@
       </form>
     
       {% if escala %}
+      <div class="toolbar-filtros">
+        <input type="text" id="filtro-escala-busca" placeholder="Buscar na escala por dia ou horário...">
+      </div>
       <div id="bloco-escala">
         <h3 style="margin-top: 20px; color: #00bcd4;">Escala do Colaborador: {{ nome_colaborador or '---' }}</h3>
     
@@ -448,7 +544,7 @@
               <th>Saída</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="tabela-escala-body">
             {% for dia, entrada, pausa, volta, saida in escala %}
             <tr>
               <td>{{ dia.capitalize() }}</td>
@@ -511,12 +607,19 @@
       const filtro = document.getElementById('filtro-nome');
       const linhas = [...document.querySelectorAll('#tabela-colaboradores tbody tr')];
       const paginacaoDiv = document.getElementById('paginacao');
+      const filtroEquipe = document.getElementById('filtro-equipe-colaboradores');
       const linhasPorPagina = 10;
       let paginaAtual = 1;
 
       function exibirPagina(pagina) {
         const termo = filtro.value.toLowerCase();
-        const filtradas = linhas.filter(l => l.children[0].textContent.toLowerCase().includes(termo));
+        const equipeSelecionada = (filtroEquipe?.value || '').toLowerCase();
+        const filtradas = linhas.filter(l => {
+          const nomeOk = l.children[0].textContent.toLowerCase().includes(termo);
+          const equipeLinha = (l.dataset.equipe || '').toLowerCase();
+          const equipeOk = !equipeSelecionada || equipeLinha === equipeSelecionada;
+          return nomeOk && equipeOk;
+        });
         const inicio = (pagina - 1) * linhasPorPagina;
         const fim = inicio + linhasPorPagina;
         linhas.forEach(l => l.style.display = "none");
@@ -541,8 +644,53 @@
         exibirPagina(paginaAtual);
       });
 
+      filtroEquipe?.addEventListener("change", () => {
+        paginaAtual = 1;
+        exibirPagina(paginaAtual);
+      });
+
       exibirPagina(paginaAtual);
+
+      filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto');
+      filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala');
+      filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir');
+
+      ativarFiltroTabela('filtro-ponto-busca', '#tabela-ponto tbody tr');
+      ativarFiltroTabela('filtro-escala-busca', '#tabela-escala-body tr');
     });
+
+    function filtrarUsuariosSelect(idEquipe, idUsuario) {
+      const selectEquipe = document.getElementById(idEquipe);
+      const selectUsuario = document.getElementById(idUsuario);
+      if (!selectEquipe || !selectUsuario) return;
+
+      const equipeSelecionada = selectEquipe.value;
+      [...selectUsuario.options].forEach((option, index) => {
+        if (index === 0) {
+          option.hidden = false;
+          return;
+        }
+        const equipeUsuario = option.getAttribute('data-equipe') || '';
+        option.hidden = !!equipeSelecionada && equipeUsuario !== equipeSelecionada;
+      });
+
+      const selecionadaAtual = selectUsuario.options[selectUsuario.selectedIndex];
+      if (selecionadaAtual && selecionadaAtual.hidden) {
+        selectUsuario.value = '';
+      }
+    }
+
+    function ativarFiltroTabela(idInput, seletorLinhas) {
+      const input = document.getElementById(idInput);
+      if (!input) return;
+      const linhas = document.querySelectorAll(seletorLinhas);
+      input.addEventListener('input', () => {
+        const termo = input.value.toLowerCase();
+        linhas.forEach((linha) => {
+          linha.style.display = linha.textContent.toLowerCase().includes(termo) ? '' : 'none';
+        });
+      });
+    }
 
     
 
