@@ -1,7 +1,8 @@
 import os
 import json
 import urllib.request
-from datetime import timedelta, datetime, date, time
+from datetime import timedelta, datetime, date, time, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import bcrypt
 import psycopg
@@ -13,6 +14,19 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-change-me')
 app.permanent_session_lifetime = timedelta(hours=1)
+
+try:
+    BRASILIA_TZ = ZoneInfo('America/Sao_Paulo')
+except ZoneInfoNotFoundError:
+    BRASILIA_TZ = timezone(timedelta(hours=-3))
+
+
+def agora_brasilia():
+    return datetime.now(BRASILIA_TZ)
+
+
+def hoje_brasilia():
+    return agora_brasilia().date()
 
 
 def report_debug_event(hypothesis_id, location, msg, data=None, run_id='pre'):
@@ -204,7 +218,7 @@ def calcular_duracao_turno(entrada, saida, pausa=None, volta_pausa=None):
 
 
 def obter_dashboard_admin(cursor):
-    hoje = date.today()
+    hoje = hoje_brasilia()
     ultimos_7_dias = [hoje - timedelta(days=offset) for offset in range(6, -1, -1)]
 
     # #region debug-point A:dashboard-start
@@ -441,7 +455,7 @@ def index():
                 FROM ponto
                 WHERE usuario_id = %s AND data_registro = %s
                 ORDER BY hora_registro
-            """, (usuario_id, date.today()))
+            """, (usuario_id, hoje_brasilia()))
             pontos_do_dia = cursor.fetchall()
 
         # Monta dicionário com dados detalhados por tipo
@@ -467,7 +481,7 @@ def index():
         return render_template(
             'index.html',
             nome=nome_usuario,
-            ano=datetime.now().year,
+            ano=agora_brasilia().year,
             pontos_dia=pontos_dict,
             proximo_tipo=proximo_tipo
         )
@@ -657,7 +671,7 @@ def bater_ponto():
         return redirect(url_for('login'))
 
     tipo = request.form.get('tipo')
-    agora = datetime.now()
+    agora = agora_brasilia()
     data = agora.date()
     hora = agora.time()
 
