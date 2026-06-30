@@ -1,4 +1,6 @@
 import os
+import json
+import urllib.request
 from datetime import timedelta, datetime, date, time
 
 import bcrypt
@@ -11,6 +13,42 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-change-me')
 app.permanent_session_lifetime = timedelta(hours=1)
+
+
+def report_debug_event(hypothesis_id, location, msg, data=None, run_id='pre'):
+    try:
+        env_path = '.dbg/login-internal-error.env'
+        debug_url = 'http://127.0.0.1:7777/event'
+        session_id = 'login-internal-error'
+
+        try:
+            with open(env_path, 'r', encoding='utf-8') as env_file:
+                for line in env_file:
+                    line = line.strip()
+                    if line.startswith('DEBUG_SERVER_URL='):
+                        debug_url = line.split('=', 1)[1]
+                    elif line.startswith('DEBUG_SESSION_ID='):
+                        session_id = line.split('=', 1)[1]
+        except OSError:
+            pass
+
+        payload = {
+            'sessionId': session_id,
+            'runId': run_id,
+            'hypothesisId': hypothesis_id,
+            'location': location,
+            'msg': msg,
+            'data': data or {},
+            'ts': int(datetime.now().timestamp() * 1000),
+        }
+        request_data = urllib.request.Request(
+            debug_url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'},
+        )
+        urllib.request.urlopen(request_data, timeout=2).read()
+    except Exception:
+        pass
 
 
 def montar_database_url():
@@ -169,121 +207,131 @@ def obter_dashboard_admin(cursor):
     hoje = date.today()
     ultimos_7_dias = [hoje - timedelta(days=offset) for offset in range(6, -1, -1)]
 
-    cursor.execute("""
-        SELECT
-            COUNT(*) AS total_usuarios,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'ativo') AS usuarios_ativos,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'inativo') AS usuarios_inativos,
-            COUNT(*) FILTER (WHERE COALESCE(logged_in, false) = true) AS usuarios_online,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'admin') AS total_admins,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'rh') AS total_rh,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'staff') AS total_staff,
-            COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'normal') AS total_colaboradores,
-            COUNT(*) FILTER (WHERE equipe_id IS NULL) AS usuarios_sem_equipe
-        FROM usuarios
-    """)
-    (
-        total_usuarios,
-        usuarios_ativos,
-        usuarios_inativos,
-        usuarios_online,
-        total_admins,
-        total_rh,
-        total_staff,
-        total_colaboradores,
-        usuarios_sem_equipe,
-    ) = cursor.fetchone()
+    # #region debug-point A:dashboard-start
+    report_debug_event('A', 'app.py:obter_dashboard_admin', '[DEBUG] dashboard admin start', {'hoje': hoje.isoformat()})
+    # #endregion
 
-    cursor.execute("SELECT COUNT(*) FROM equipes")
-    total_equipes = cursor.fetchone()[0]
-
-    cursor.execute("""
-        SELECT COALESCE(e.nome_equipe, 'Sem equipe') AS nome_equipe, COUNT(u.id) AS total
-        FROM usuarios u
-        LEFT JOIN equipes e ON e.id = u.equipe_id
-        GROUP BY COALESCE(e.nome_equipe, 'Sem equipe')
-        ORDER BY total DESC, nome_equipe
-        LIMIT 5
-    """)
-    equipes_resumo = [
-        {'nome': row[0], 'total': row[1]}
-        for row in cursor.fetchall()
-    ]
-
-    cursor.execute("""
-        WITH ponto_dia AS (
+    try:
+        cursor.execute("""
             SELECT
-                usuario_id,
-                COUNT(*) AS total_registros,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'entrada') AS entradas,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'saida') AS saidas
+                COUNT(*) AS total_usuarios,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'ativo') AS usuarios_ativos,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'inativo') AS usuarios_inativos,
+                COUNT(*) FILTER (WHERE COALESCE(logged_in, false) = true) AS usuarios_online,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'admin') AS total_admins,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'rh') AS total_rh,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'staff') AS total_staff,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'normal') AS total_colaboradores,
+                COUNT(*) FILTER (WHERE equipe_id IS NULL) AS usuarios_sem_equipe
+            FROM usuarios
+        """)
+        (
+            total_usuarios,
+            usuarios_ativos,
+            usuarios_inativos,
+            usuarios_online,
+            total_admins,
+            total_rh,
+            total_staff,
+            total_colaboradores,
+            usuarios_sem_equipe,
+        ) = cursor.fetchone()
+
+        cursor.execute("SELECT COUNT(*) FROM equipes")
+        total_equipes = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT COALESCE(e.nome_equipe, 'Sem equipe') AS nome_equipe, COUNT(u.id) AS total
+            FROM usuarios u
+            LEFT JOIN equipes e ON e.id = u.equipe_id
+            GROUP BY COALESCE(e.nome_equipe, 'Sem equipe')
+            ORDER BY total DESC, nome_equipe
+            LIMIT 5
+        """)
+        equipes_resumo = [
+            {'nome': row[0], 'total': row[1]}
+            for row in cursor.fetchall()
+        ]
+
+        cursor.execute("""
+            WITH ponto_dia AS (
+                SELECT
+                    usuario_id,
+                    COUNT(*) AS total_registros,
+                    COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'entrada') AS entradas,
+                    COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'saida') AS saidas
+                FROM ponto
+                WHERE data_registro = %s
+                GROUP BY usuario_id
+            )
+            SELECT
+                COALESCE(SUM(total_registros), 0) AS total_pontos_hoje,
+                COUNT(*) FILTER (WHERE entradas > 0) AS usuarios_com_entrada_hoje,
+                COUNT(*) FILTER (WHERE entradas > 0 AND saidas > 0) AS usuarios_jornada_completa_hoje,
+                COUNT(*) FILTER (WHERE entradas > 0 AND saidas = 0) AS usuarios_pendentes_saida
+            FROM ponto_dia
+        """, (hoje,))
+        (
+            total_pontos_hoje,
+            usuarios_com_entrada_hoje,
+            usuarios_jornada_completa_hoje,
+            usuarios_pendentes_saida,
+        ) = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM usuarios
+            WHERE LOWER(COALESCE(status, '')) = 'ativo'
+              AND LOWER(COALESCE(hierarquia, '')) IN ('normal', 'staff', 'admin')
+              AND id NOT IN (
+                  SELECT DISTINCT usuario_id
+                  FROM ponto
+                  WHERE data_registro = %s
+              )
+        """, (hoje,))
+        usuarios_sem_registro_hoje = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT data_registro, COUNT(*) AS total
             FROM ponto
-            WHERE data_registro = %s
-            GROUP BY usuario_id
-        )
-        SELECT
-            COALESCE(SUM(total_registros), 0) AS total_pontos_hoje,
-            COUNT(*) FILTER (WHERE entradas > 0) AS usuarios_com_entrada_hoje,
-            COUNT(*) FILTER (WHERE entradas > 0 AND saidas > 0) AS usuarios_jornada_completa_hoje,
-            COUNT(*) FILTER (WHERE entradas > 0 AND saidas = 0) AS usuarios_pendentes_saida
-        FROM ponto_dia
-    """, (hoje,))
-    (
-        total_pontos_hoje,
-        usuarios_com_entrada_hoje,
-        usuarios_jornada_completa_hoje,
-        usuarios_pendentes_saida,
-    ) = cursor.fetchone()
+            WHERE data_registro BETWEEN %s AND %s
+            GROUP BY data_registro
+            ORDER BY data_registro
+        """, (ultimos_7_dias[0], hoje))
+        pontos_por_data = {row[0]: row[1] for row in cursor.fetchall()}
+        grafico_7dias_labels = [dia.strftime('%d/%m') for dia in ultimos_7_dias]
+        grafico_7dias_dados = [pontos_por_data.get(dia, 0) for dia in ultimos_7_dias]
 
-    cursor.execute("""
-        SELECT COUNT(*)
-        FROM usuarios
-        WHERE LOWER(COALESCE(status, '')) = 'ativo'
-          AND LOWER(COALESCE(hierarquia, '')) IN ('normal', 'staff', 'admin')
-          AND id NOT IN (
-              SELECT DISTINCT usuario_id
-              FROM ponto
-              WHERE data_registro = %s
-          )
-    """, (hoje,))
-    usuarios_sem_registro_hoje = cursor.fetchone()[0]
-
-    cursor.execute("""
-        SELECT data_registro, COUNT(*) AS total
-        FROM ponto
-        WHERE data_registro BETWEEN %s AND %s
-        GROUP BY data_registro
-        ORDER BY data_registro
-    """, (ultimos_7_dias[0], hoje))
-    pontos_por_data = {row[0]: row[1] for row in cursor.fetchall()}
-    grafico_7dias_labels = [dia.strftime('%d/%m') for dia in ultimos_7_dias]
-    grafico_7dias_dados = [pontos_por_data.get(dia, 0) for dia in ultimos_7_dias]
-
-    cursor.execute("""
-        SELECT
-            u.nome,
-            p.tipo,
-            p.data_registro,
-            CASE
-                WHEN p.corrigido THEN COALESCE(p.hora_corrigida, p.hora_registro)
-                ELSE p.hora_registro
-            END AS hora_exibida,
-            COALESCE(p.abonado, false) AS abonado
-        FROM ponto p
-        JOIN usuarios u ON u.id = p.usuario_id
-        ORDER BY p.data_registro DESC, hora_exibida DESC
-        LIMIT 8
-    """)
-    atividade_recente = [
-        {
-            'nome': row[0],
-            'tipo': row[1],
-            'data': row[2].strftime('%d/%m/%Y') if row[2] else '-',
-            'hora': row[3].strftime('%H:%M') if row[3] else '-',
-            'abonado': bool(row[4]),
-        }
-        for row in cursor.fetchall()
-    ]
+        cursor.execute("""
+            SELECT
+                u.nome,
+                p.tipo,
+                p.data_registro,
+                CASE
+                    WHEN p.corrigido THEN COALESCE(p.hora_corrigida, p.hora_registro)
+                    ELSE p.hora_registro
+                END AS hora_exibida,
+                COALESCE(p.abonado, false) AS abonado
+            FROM ponto p
+            JOIN usuarios u ON u.id = p.usuario_id
+            ORDER BY p.data_registro DESC, hora_exibida DESC
+            LIMIT 8
+        """)
+        atividade_recente = [
+            {
+                'nome': row[0],
+                'tipo': row[1],
+                'data': row[2].strftime('%d/%m/%Y') if row[2] else '-',
+                'hora': row[3].strftime('%H:%M') if row[3] else '-',
+                'abonado': bool(row[4]),
+            }
+            for row in cursor.fetchall()
+        ]
+    except Exception as exc:
+        # #region debug-point C:dashboard-error
+        report_debug_event('C', 'app.py:obter_dashboard_admin', '[DEBUG] dashboard admin query failed', {'error': str(exc), 'error_type': type(exc).__name__})
+        # #endregion
+        raise
 
     alertas = []
     if usuarios_sem_equipe:
@@ -477,6 +525,10 @@ def login():
         senha = request.form['senha']
         tipo = request.form.get('tipo')  # "admin", "funcionario", "rh"
 
+        # #region debug-point B:login-start
+        report_debug_event('B', 'app.py:login', '[DEBUG] login request start', {'email': email, 'tipo': tipo})
+        # #endregion
+
         try:
             with conectar() as conn:
                 cursor = conn.cursor()
@@ -490,6 +542,21 @@ def login():
                 if not user:
                     flash('Usuário não encontrado.', 'error')
                     return redirect(url_for('login'))
+
+                # #region debug-point B:login-user-found
+                report_debug_event(
+                    'B',
+                    'app.py:login',
+                    '[DEBUG] login user fetched',
+                    {
+                        'user_id': user[0],
+                        'hierarquia': user[3],
+                        'status': user[4],
+                        'logged_in': bool(user[5]),
+                        'senha_temporaria': bool(user[6]),
+                    }
+                )
+                # #endregion
 
                 senha_hash = user[2]
                 if not validar_senha_e_migrar(cursor, user[0], senha, senha_hash):
@@ -530,8 +597,11 @@ def login():
                 return redirect(destino)
 
         except Exception as e:
+            # #region debug-point D:login-exception
+            report_debug_event('D', 'app.py:login', '[DEBUG] login exception', {'error': str(e), 'error_type': type(e).__name__, 'email': email, 'tipo': tipo})
+            # #endregion
             print("Erro no login:", e)
-            flash('Erro interno durante o login. Tente novamente.', 'error')
+            flash(f'Erro interno durante o login ({type(e).__name__}). Tente novamente.', 'error')
             return redirect(url_for('login'))
 
     return render_template('login.html')
@@ -541,6 +611,9 @@ def login():
 @app.route('/painel')
 def painel():
     if 'logged_in' in session and session.get('hierarquia') == 'admin':
+        # #region debug-point E:painel-start
+        report_debug_event('E', 'app.py:painel', '[DEBUG] painel admin start', {'usuario_id': session.get('usuario_id'), 'hierarquia': session.get('hierarquia')})
+        # #endregion
         page = request.args.get('page', 1, type=int)
         per_page = 10
         offset = (page - 1) * per_page
