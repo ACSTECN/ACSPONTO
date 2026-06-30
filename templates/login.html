@@ -3,200 +3,585 @@
 <head>
   <meta charset="UTF-8">
   <title>Login - ACS Ponto</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
-
-
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    :root {
+      --bg: #08111f;
+      --bg-soft: #0f172a;
+      --panel: rgba(15, 23, 42, 0.82);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent-2: #3b82f6;
+      --admin: #3b82f6;
+      --func: #22c55e;
+      --rh: #8b5cf6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
     body {
-  font-family: 'Inter', sans-serif;
-  margin: 0;
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  background: linear-gradient(-45deg, #1e2a38, #233648, #1e2a38, #233648);
-  background-size: 400% 400%;
-  animation: animarFundo 15s ease infinite;
-}
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.24), transparent 28%),
+        radial-gradient(circle at top right, rgba(34, 211, 238, 0.16), transparent 24%),
+        linear-gradient(180deg, #020617 0%, #08111f 100%);
+      color: var(--text);
+    }
 
-@keyframes animarFundo {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+    #particles-js {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
 
-
-    .conteudo {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+    .page {
+      min-height: 100vh;
       position: relative;
       z-index: 1;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+      padding: 28px;
     }
 
-    .logo {
-      width: 350px;
-      margin-bottom: 40px;
+    .hero,
+    .login-panel {
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 24px 60px rgba(2, 6, 23, 0.35);
     }
 
-    .perfil-opcoes {
+    .hero {
+      padding: 36px;
       display: flex;
-      gap: 30px;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: calc(100vh - 56px);
+    }
+
+    .hero-top img {
+      width: min(360px, 100%);
+      margin-bottom: 24px;
+    }
+
+    .hero-top h1 {
+      font-size: 40px;
+      color: #f8fafc;
+      margin-bottom: 14px;
+    }
+
+    .hero-top p {
+      max-width: 640px;
+      color: #cbd5e1;
+      font-size: 16px;
+      line-height: 1.75;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
       margin-top: 20px;
     }
 
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.84);
+      border: 1px solid rgba(34, 211, 238, 0.18);
+      color: #a5f3fc;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .feature-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(2, 6, 23, 0.46);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .feature-card i {
+      color: var(--accent);
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card strong {
+      display: block;
+      font-size: 16px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    .feature-card span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .hero-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding-top: 20px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .login-panel {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+    }
+
+    .login-head {
+      margin-bottom: 22px;
+    }
+
+    .login-head h2 {
+      font-size: 30px;
+      color: #f8fafc;
+      margin-bottom: 10px;
+    }
+
+    .login-head p {
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .perfil-opcoes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
     .perfil-btn {
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 22px;
+      padding: 22px 16px;
+      background: rgba(2, 6, 23, 0.44);
+      color: var(--text);
+      cursor: pointer;
+      transition: 0.22s ease;
+      min-height: 148px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 30px;
-      border: none;
-      border-radius: 20px;
-      font-weight: 600;
-      color: white;
-      cursor: pointer;
-      transition: transform 0.3s ease;
-      width: 150px;
-      height: 150px;
-      font-size: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      gap: 10px;
+      text-align: center;
+    }
+
+    .perfil-btn:hover,
+    .perfil-btn.active {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(2, 6, 23, 0.26);
     }
 
     .perfil-btn i {
-      font-size: 40px;
-      margin-bottom: 10px;
+      font-size: 32px;
+    }
+
+    .perfil-btn strong {
+      display: block;
+      font-size: 16px;
+      color: #f8fafc;
     }
 
     .perfil-btn span {
-      font-size: 16px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--muted);
     }
 
-    .perfil-btn:hover {
-      transform: scale(1.05);
+    .perfil-btn.admin:hover,
+    .perfil-btn.admin.active {
+      border-color: rgba(59, 130, 246, 0.28);
+      background: rgba(59, 130, 246, 0.12);
     }
 
-    .btn-admin { background-color: #2F80ED; }
-    .btn-func  { background-color: #27AE60; }
-    .btn-rh    { background-color: #6f42c1; }
+    .perfil-btn.admin i { color: var(--admin); }
+
+    .perfil-btn.func:hover,
+    .perfil-btn.func.active {
+      border-color: rgba(34, 197, 94, 0.28);
+      background: rgba(34, 197, 94, 0.12);
+    }
+
+    .perfil-btn.func i { color: var(--func); }
+
+    .perfil-btn.rh:hover,
+    .perfil-btn.rh.active {
+      border-color: rgba(139, 92, 246, 0.28);
+      background: rgba(139, 92, 246, 0.12);
+    }
+
+    .perfil-btn.rh i { color: var(--rh); }
+
+    .selected-role {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(2, 6, 23, 0.44);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      margin-bottom: 18px;
+      color: #cbd5e1;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .selected-role strong {
+      color: #f8fafc;
+    }
 
     form {
       display: none;
-      margin-top: 40px;
-      text-align: center;
-      background-color: rgba(255, 255, 255, 0.05);
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(8px);
+      gap: 14px;
+      flex-direction: column;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap i {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 14px;
     }
 
     input[type="email"],
     input[type="password"] {
-      padding: 15px;
-      margin: 10px 0;
-      width: 280px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      background-color: #ecf0f1;
+      width: 100%;
+      padding: 15px 16px 15px 46px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 6, 23, 0.55);
+      color: var(--text);
+      font-size: 15px;
       outline: none;
+      transition: 0.2s ease;
     }
 
-    input::placeholder { color: #999; }
+    input[type="email"]:focus,
+    input[type="password"]:focus {
+      border-color: rgba(34, 211, 238, 0.3);
+      box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.08);
+    }
 
-    form button {
-      margin-top: 15px;
-      padding: 12px 30px;
+    input::placeholder {
+      color: #7c8da3;
+    }
+
+    .submit-btn {
+      margin-top: 6px;
+      padding: 14px 18px;
       border: none;
-      border-radius: 10px;
-      background-color: #2F80ED;
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
+      border-radius: 16px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #04101e;
+      font-size: 15px;
+      font-weight: 800;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: 0.2s ease;
     }
 
-    form button:hover {
-      background-color: #1c65d1;
-      transform: scale(1.05);
+    .submit-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 26px rgba(34, 211, 238, 0.18);
+    }
+
+    .mensagens {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
     }
 
     .mensagem {
-      color: #E74C3C;
-      margin-top: 10px;
-      font-weight: 600;
+      padding: 13px 15px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .mensagem.error {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.22);
+      color: #fca5a5;
+    }
+
+    .mensagem.success {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.22);
+      color: #86efac;
+    }
+
+    .mensagem.warning {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.22);
+      color: #fde68a;
+    }
+
+    .login-footer {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      color: var(--muted);
+      font-size: 12px;
       text-align: center;
+    }
+
+    @media (max-width: 1200px) {
+      .feature-grid,
+      .perfil-opcoes {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 980px) {
+      body {
+        overflow: auto;
+      }
+
+      .page {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+
+      .hero,
+      .login-panel {
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-top h1 {
+        font-size: 30px;
+      }
+
+      .login-head h2 {
+        font-size: 26px;
+      }
     }
   </style>
 </head>
-
 <body>
+  <div id="particles-js"></div>
 
- 
+  <div class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <img src="/logofundo.png" alt="Logo ACS Ponto">
+        <h1>Controle de ponto com cara de produto serio</h1>
+        <p>Entre no ACS Ponto escolhendo seu perfil de acesso. O sistema direciona cada tipo de usuario para a area correta com uma experiencia mais limpa, moderna e profissional.</p>
 
+        <div class="hero-pills">
+          <div class="pill"><i class="fas fa-shield-halved"></i> Login por perfil</div>
+          <div class="pill"><i class="fas fa-clock"></i> Registro organizado</div>
+          <div class="pill"><i class="fas fa-building"></i> Operacao empresarial</div>
+        </div>
 
+        <div class="feature-grid">
+          <article class="feature-card">
+            <i class="fas fa-user-check"></i>
+            <strong>Bater ponto</strong>
+            <span>Colaboradores registram a jornada em sequencia, com visual simples e direto.</span>
+          </article>
+          <article class="feature-card">
+            <i class="fas fa-users-cog"></i>
+            <strong>Gestao RH</strong>
+            <span>RH acompanha escalas, saldos, registros e ranking em um painel mais forte.</span>
+          </article>
+          <article class="feature-card">
+            <i class="fas fa-user-shield"></i>
+            <strong>Administracao</strong>
+            <span>Admins controlam usuarios, equipes e operacao com dashboards premium.</span>
+          </article>
+        </div>
+      </div>
 
+      <div class="hero-footer">
+        <span>ACS Ponto</span>
+        <span>Acesso seguro e organizado para toda a operacao</span>
+      </div>
+    </section>
 
+    <section class="login-panel">
+      <div class="login-head">
+        <h2>Entrar no sistema</h2>
+        <p>Escolha primeiro o perfil correto para liberar o formulario de acesso. Isso evita erro de hierarquia e deixa o fluxo mais claro.</p>
+      </div>
 
-  <div class="conteudo">
-    <img src="/logofundo.png" alt="Logo ACS Ponto" class="logo">
+      <div class="perfil-opcoes">
+        <button type="button" class="perfil-btn admin" data-tipo="admin" onclick="mostrarLogin('admin', this)">
+          <i class="fas fa-user-shield"></i>
+          <strong>Administrador</strong>
+          <span>Acesso ao painel geral, usuarios e configuracoes.</span>
+        </button>
+        <button type="button" class="perfil-btn func" data-tipo="funcionario" onclick="mostrarLogin('funcionario', this)">
+          <i class="fas fa-user-check"></i>
+          <strong>Bater ponto</strong>
+          <span>Acesso ao registro da jornada e tela do colaborador.</span>
+        </button>
+        <button type="button" class="perfil-btn rh" data-tipo="rh" onclick="mostrarLogin('rh', this)">
+          <i class="fas fa-users-cog"></i>
+          <strong>RH</strong>
+          <span>Acesso a conferencias, escalas e operacao do RH.</span>
+        </button>
+      </div>
 
-    <div class="perfil-opcoes">
-      <button class="perfil-btn btn-admin" onclick="mostrarLogin('admin')">
-        <i class="fas fa-user-shield"></i>
-        <span>Administrador</span>
-      </button>
-      <button class="perfil-btn btn-func" onclick="mostrarLogin('funcionario')">
-        <i class="fas fa-user-check"></i>
-        <span>Bater ponto</span>
-      </button>
-      <button class="perfil-btn btn-rh" onclick="mostrarLogin('rh')">
-        <i class="fas fa-users-cog"></i>
-        <span>RH</span>
-      </button>
-    </div>
+      <div class="selected-role" id="selectedRole">
+        <i class="fas fa-circle-check" style="color: var(--accent);"></i>
+        <span>Perfil selecionado: <strong id="selectedRoleText">-</strong></span>
+      </div>
 
-    <form method="POST" id="formLogin">
-      <input type="hidden" name="tipo" id="tipoPerfil">
-      <input type="email" name="email" placeholder="E-mail" required><br>
-      <input type="password" name="senha" placeholder="Senha" required><br>
-      <button type="submit" class="btn-admin">Entrar</button>
-    </form>
+      <form method="POST" id="formLogin">
+        <input type="hidden" name="tipo" id="tipoPerfil">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for categoria, mensagem in messages %}
-          <p class="mensagem">{{ mensagem }}</p>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+        <div class="field">
+          <label for="email">E-mail</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="email" name="email" placeholder="Digite seu e-mail" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="senha">Senha</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          <i class="fas fa-right-to-bracket"></i>
+          Entrar
+        </button>
+      </form>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mensagens">
+            {% for categoria, mensagem in messages %}
+              <div class="mensagem {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <div class="login-footer">
+        Selecione o perfil correto antes de enviar as credenciais.
+      </div>
+    </section>
   </div>
 
   <script>
-    function mostrarLogin(tipo) {
+    function mostrarLogin(tipo, botao) {
       document.getElementById("tipoPerfil").value = tipo;
-      document.getElementById("formLogin").style.display = "block";
+      document.getElementById("formLogin").style.display = "grid";
+      document.getElementById("selectedRole").style.display = "flex";
+
+      const rotulos = {
+        admin: "Administrador",
+        funcionario: "Bater ponto",
+        rh: "RH"
+      };
+      document.getElementById("selectedRoleText").textContent = rotulos[tipo] || tipo;
+
+      document.querySelectorAll(".perfil-btn").forEach((item) => item.classList.remove("active"));
+      if (botao) {
+        botao.classList.add("active");
+      }
     }
 
     tsParticles.load("particles-js", {
-    background: { color: "#1E2A38" },
-    fpsLimit: 60,
-    interactivity: {
-      events: { onClick: { enable: false }, onHover: { enable: false } }
-    },
-    particles: {
-      color: { value: "#ffffff" },
-      move: { enable: true, speed: 0.5 },
-      number: { value: 40 },
-      size: { value: 2 },
-      opacity: { value: 0.3 }
-    }
-  });
+      fullScreen: { enable: false },
+      background: { color: "transparent" },
+      fpsLimit: 60,
+      interactivity: {
+        events: {
+          onClick: { enable: false },
+          onHover: { enable: false },
+          resize: true
+        }
+      },
+      particles: {
+        color: { value: "#ffffff" },
+        links: {
+          enable: false
+        },
+        move: {
+          enable: true,
+          speed: 0.45,
+          direction: "none",
+          outModes: { default: "out" }
+        },
+        number: {
+          value: 42,
+          density: { enable: true, area: 800 }
+        },
+        opacity: { value: 0.25 },
+        shape: { type: "circle" },
+        size: { value: { min: 1, max: 3 } }
+      },
+      detectRetina: true
+    });
   </script>
-
 </body>
 </html>
