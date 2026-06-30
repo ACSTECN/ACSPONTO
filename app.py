@@ -597,7 +597,7 @@ def login():
                 destino = None
                 if tipo == 'admin' and hierarquia == 'admin':
                     destino = url_for('painel')
-                elif tipo == 'funcionario' and hierarquia in ['normal', 'staff', 'admin']:
+                elif tipo == 'funcionario':
                     destino = url_for('index')
                 elif tipo == 'rh' and hierarquia == 'rh':
                     destino = url_for('painel_rh')
