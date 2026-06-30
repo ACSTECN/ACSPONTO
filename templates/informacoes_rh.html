@@ -3,78 +3,321 @@
 <head>
   <meta charset="UTF-8" />
   <title>Painel RH - ACS Ponto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
- 
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    :root {
+      --bg: #08111f;
+      --bg-soft: #0f172a;
+      --panel: rgba(15, 23, 42, 0.86);
+      --panel-2: rgba(30, 41, 59, 0.86);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent-2: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
     }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #121b25;
-      color: #e0e0e0;
+      min-height: 100vh;
       display: flex;
-      height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(34, 211, 238, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.2), transparent 25%),
+        linear-gradient(180deg, #020617 0%, #08111f 100%);
     }
 
     .sidebar {
-      width: 240px;
-      background-color: #1f2d3d;
-      padding: 30px 20px;
+      width: 260px;
+      padding: 28px 20px;
+      background: rgba(2, 6, 23, 0.74);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
-    .sidebar h2 {
-      color: #00bcd4;
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 20px;
+    .brand {
+      padding: 18px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(59, 130, 246, 0.12));
+      border: 1px solid rgba(34, 211, 238, 0.16);
+      margin-bottom: 8px;
     }
 
-    .sidebar button {
-      background: none;
-      border: none;
-      color: #ccc;
-      font-size: 16px;
-      padding: 12px 15px;
-      border-radius: 8px;
-      text-align: left;
+    .brand h2 {
+      font-size: 22px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    .brand p {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      background: rgba(30, 41, 59, 0.72);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 12px;
-      transition: 0.2s;
+      gap: 10px;
       cursor: pointer;
+      transition: 0.2s ease;
     }
 
-    .sidebar button:hover {
-      background-color: #2c3e50;
-      color: #fff;
+    .nav-btn:hover,
+    .nav-btn.active {
+      transform: translateY(-1px);
+      border-color: rgba(34, 211, 238, 0.26);
+      background: rgba(37, 99, 235, 0.2);
+      color: #f8fafc;
+    }
+
+    .nav-btn.logout {
+      margin-top: auto;
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.18);
     }
 
     .main {
       flex: 1;
-      padding: 40px;
+      padding: 28px;
       overflow-y: auto;
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(2, 6, 23, 0.35);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap: 18px;
+    }
+
+    .hero h1 {
+      font-size: 34px;
+      color: #f8fafc;
+      margin-bottom: 10px;
+    }
+
+    .hero p {
+      color: #cbd5e1;
+      line-height: 1.7;
+      max-width: 760px;
+    }
+
+    .hero-pills,
+    .mini-pills {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(34, 211, 238, 0.18);
+      color: #a5f3fc;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-side {
+      padding: 22px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.14), rgba(59, 130, 246, 0.12));
+      border: 1px solid rgba(59, 130, 246, 0.22);
+    }
+
+    .hero-side h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .hero-side p {
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .summary-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.72));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::after {
+      content: '';
+      position: absolute;
+      inset: auto -28px -30px auto;
+      width: 84px;
+      height: 84px;
+      background: radial-gradient(circle, rgba(34, 211, 238, 0.14), transparent 70%);
+    }
+
+    .summary-card i {
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .summary-card strong {
+      display: block;
+      font-size: 28px;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .summary-card span {
+      display: block;
+      font-size: 14px;
+      color: #cbd5e1;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .summary-card small {
+      color: var(--muted);
+      line-height: 1.5;
+      display: block;
+    }
+
+    .summary-card .negativo {
+      color: #fca5a5;
+    }
+
+    .summary-card .positivo {
+      color: #86efac;
+    }
+
+    .toolbar-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .action-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.72));
+      cursor: pointer;
+      transition: 0.22s ease;
+    }
+
+    .action-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(34, 211, 238, 0.28);
+      box-shadow: 0 16px 28px rgba(2, 6, 23, 0.26);
+    }
+
+    .action-card i {
+      color: var(--accent);
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .action-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+      color: #f8fafc;
+    }
+
+    .action-card span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .flash-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .flash {
+      padding: 13px 15px;
+      border-radius: 14px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .flash.success {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.22);
+      color: #86efac;
+    }
+
+    .flash.error {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.22);
+      color: #fca5a5;
+    }
+
+    .flash.warning {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.24);
+      color: #fde68a;
     }
 
     .section {
       display: none;
+      padding: 24px;
     }
 
     .section.active {
       display: block;
-      background: #1a2633;
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      animation: fadeIn 0.3s ease;
+      animation: fadeIn 0.25s ease;
     }
 
     @keyframes fadeIn {
@@ -82,582 +325,766 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    h2 {
-      font-size: 22px;
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
       margin-bottom: 20px;
-      color: #00bcd4;
+      flex-wrap: wrap;
+    }
+
+    .section-head h2,
+    .section-head h3 {
+      color: #f8fafc;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 780px;
+      font-size: 14px;
     }
 
     .form-inline,
-    .scale-row {
+    .toolbar-filtros,
+    .scale-controls {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
       gap: 12px;
-      margin-bottom: 12px;
+      align-items: center;
+      margin-bottom: 18px;
     }
 
     .form-inline input,
     .form-inline select,
+    .toolbar-filtros input,
+    .toolbar-filtros select,
+    .scale-controls select,
     .scale-row input,
     .scale-row select {
-      padding: 8px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      background-color: #2a3a4d;
-      color: #eee;
+      min-width: 220px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 6, 23, 0.55);
+      color: var(--text);
+      outline: none;
+    }
+
+    .form-inline input:focus,
+    .form-inline select:focus,
+    .toolbar-filtros input:focus,
+    .toolbar-filtros select:focus,
+    .scale-controls select:focus,
+    .scale-row input:focus {
+      border-color: rgba(34, 211, 238, 0.3);
+      box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.08);
     }
 
     .btn {
-      padding: 10px 16px;
-      background: #00bcd4;
-      color: white;
+      padding: 12px 16px;
       border: none;
-      border-radius: 6px;
+      border-radius: 14px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #04101e;
+      font-weight: 800;
       cursor: pointer;
-      transition: 0.2s;
+      transition: 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .btn:hover {
-      background: #008fa1;
-      box-shadow: 0 0 8px #00bcd4aa;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(34, 211, 238, 0.15);
     }
 
-    .cards-resumo {
+    .subcards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
-      margin-bottom: 22px;
+      margin-bottom: 18px;
     }
 
-    .card-resumo {
-      background: linear-gradient(180deg, #203246, #182432);
-      border: 1px solid #2e445c;
-      border-radius: 14px;
+    .subcard {
       padding: 16px;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: rgba(2, 6, 23, 0.45);
     }
 
-    .card-resumo strong {
+    .subcard strong {
       display: block;
-      color: #fff;
-      font-size: 26px;
-      margin-bottom: 8px;
+      font-size: 24px;
+      margin-bottom: 6px;
+      color: #f8fafc;
     }
 
-    .card-resumo span {
-      color: #8ecfe0;
+    .subcard span {
+      color: var(--muted);
       font-size: 13px;
       font-weight: 600;
     }
 
-    .toolbar-filtros {
+    .subcard .negativo {
+      color: #fca5a5;
+    }
+
+    .subcard .positivo {
+      color: #86efac;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(2, 6, 23, 0.44);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(2, 6, 23, 0.56);
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      color: var(--text);
+    }
+
+    th {
+      background: rgba(14, 165, 233, 0.18);
+      color: #f8fafc;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td {
+      background: rgba(15, 23, 42, 0.38);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag.success {
+      background: rgba(34, 197, 94, 0.12);
+      color: #86efac;
+    }
+
+    .tag.warning {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fde68a;
+    }
+
+    .tag.info {
+      background: rgba(59, 130, 246, 0.12);
+      color: #bfdbfe;
+    }
+
+    .tag.danger {
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+    }
+
+    .totais {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+
+    .totais b {
+      color: #f8fafc;
+    }
+
+    .scale-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .scale-row {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(2, 6, 23, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.12);
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
       align-items: center;
-      margin: 14px 0 18px;
-    }
-
-    .toolbar-filtros input,
-    .toolbar-filtros select {
-      padding: 10px;
-      border-radius: 8px;
-      background: #213244;
-      border: 1px solid #35506b;
-      color: #eee;
-      min-width: 220px;
-    }
-
-    .scale-row {
-      background-color: #1e2a38;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 8px;
     }
 
     .scale-row label {
       display: flex;
       align-items: center;
-      gap: 6px;
-      min-width: 100px;
+      gap: 8px;
+      color: #cbd5e1;
+      font-size: 14px;
+      font-weight: 600;
+      min-width: 110px;
     }
 
-    .scale-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
+    .scale-row input[type="checkbox"] {
+      min-width: auto;
+      width: 16px;
+      height: 16px;
     }
 
-    #tabela-colaboradores {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background-color: #1f2d3d;
-      border-radius: 8px;
-      overflow: hidden;
+    .chart-panel {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(2, 6, 23, 0.42);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      margin-top: 18px;
     }
 
-    #tabela-colaboradores th,
-    #tabela-colaboradores td {
-      padding: 14px;
-      text-align: left;
-      border-bottom: 1px solid #2e3e50;
-      color: #e0e0e0;
-    }
-
-    #tabela-colaboradores th {
-      background-color: #00bcd4;
-      color: #fff;
-    }
-
-    #tabela-colaboradores tr:hover {
-      background-color: #263445;
-    }
-
-    #filtro-nome {
-      width: 100%;
-      max-width: 400px;
-      padding: 10px;
-      margin-bottom: 20px;
-      border-radius: 6px;
-      background-color: #2a3a4d;
-      border: 1px solid #444;
-      color: #eee;
+    .chart-panel canvas {
+      margin-top: 16px;
+      max-height: 340px;
     }
 
     #paginacao {
-      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
     }
 
     #paginacao button {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: 1px solid #555;
-      background: #2a3a4d;
-      margin: 2px;
-      color: #eee;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(30, 41, 59, 0.72);
+      color: var(--text);
       cursor: pointer;
+      font-weight: 700;
     }
 
     #paginacao button.active {
-      background-color: #00bcd4;
-      color: #fff;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #04101e;
     }
 
-    #tabela-ponto {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background-color: #1f2d3d;
-  border-radius: 8px;
-  overflow: hidden;
-}
+    .empty-state {
+      padding: 20px;
+      border-radius: 18px;
+      border: 1px dashed rgba(148, 163, 184, 0.18);
+      background: rgba(2, 6, 23, 0.35);
+      color: var(--muted);
+      line-height: 1.6;
+    }
 
-#tabela-ponto th,
-#tabela-ponto td {
-  padding: 14px;
-  text-align: left;
-  border-bottom: 1px solid #2e3e50;
-  color: #e0e0e0;
-}
+    @media (max-width: 1300px) {
+      .summary-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
 
-#tabela-ponto th {
-  background-color: #00bcd4;
-  color: #fff;
-}
+      .toolbar-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
 
-#tabela-ponto tr:hover {
-  background-color: #263445;
-}
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
 
-.totais {
-  margin-top: 16px;
-  font-weight: bold;
-  color: #00bcd4;
-}
+      .main {
+        padding: 16px;
+      }
 
-#tabela-escala {
-  width: max-content;
-  max-width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background-color: #1f2d3d;
-  border-radius: 8px;
-  overflow-x: auto;
-  table-layout: auto;
-}
+      .hero,
+      .toolbar-row {
+        grid-template-columns: 1fr;
+      }
+    }
 
-#tabela-escala th,
-#tabela-escala td {
-  padding: 14px;
-  text-align: center;
-  border-bottom: 1px solid #2e3e50;
-  color: #e0e0e0;
-  min-width: 100px;
-  white-space: nowrap;
-}
+    @media (max-width: 720px) {
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
 
-#tabela-escala th {
-  background-color: #00bcd4;
-  color: #fff;
-}
+      .hero h1 {
+        font-size: 28px;
+      }
 
-#tabela-escala tr:hover {
-  background-color: #263445;
-}
-
+      .section-head {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
-
-  <div class="sidebar">
-    <h2><i class="fas fa-user-cog"></i> RH</h2>
-    <button onclick="mostrar('colaboradores')"><i class="fas fa-users"></i> Colaboradores</button>
-    <button onclick="mostrar('ponto')"><i class="fas fa-clock"></i> Registros de Ponto</button>
-    <button onclick="mostrar('escala')"><i class="fas fa-calendar-alt"></i> Definir Escalas</button>
-    <button onclick="mostrar('visualizar_escala')"><i class="fas fa-eye"></i> Visualizar Escalas</button>
-    <button onclick="mostrar('relatorio')"><i class="fas fa-chart-bar"></i> Ranking</button>
-    <button onclick="window.location.href='/logout'"><i class="fas fa-sign-out-alt"></i> Sair</button>
-  </div>
-  
-  
-
-  <div class="main">
-    <div id="colaboradores" class="section {% if aba_ativa == 'colaboradores' %}active{% endif %}">
-
-
-      <h2><i class="fas fa-users"></i> Colaboradores</h2>
-      <div class="cards-resumo">
-        <div class="card-resumo"><strong>{{ resumo_colaboradores.total if resumo_colaboradores else usuarios|length }}</strong><span>Total de colaboradores</span></div>
-        <div class="card-resumo"><strong>{{ resumo_colaboradores.ativos if resumo_colaboradores else 0 }}</strong><span>Ativos</span></div>
-        <div class="card-resumo"><strong>{{ resumo_colaboradores.staff if resumo_colaboradores else 0 }}</strong><span>Supervisores</span></div>
-        <div class="card-resumo"><strong>{{ resumo_colaboradores.rh if resumo_colaboradores else 0 }}</strong><span>RH</span></div>
-        <div class="card-resumo"><strong>{{ resumo_colaboradores.sem_equipe if resumo_colaboradores else 0 }}</strong><span>Sem equipe</span></div>
-      </div>
-      <div class="toolbar-filtros">
-        <input type="text" id="filtro-nome" placeholder="Filtrar por nome...">
-        <select id="filtro-equipe-colaboradores">
-          <option value="">Todas as equipes</option>
-          {% for equipe in equipes or [] %}
-            <option value="{{ equipe.NomeEquipe }}">{{ equipe.NomeEquipe }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <table id="tabela-colaboradores">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Email</th>
-            <th>Equipe</th>
-            <th>Hierarquia</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for u in usuarios %}
-          <tr data-equipe="{{ u.NomeEquipe or '' }}">
-            <td>{{ u.Nome }}</td>
-            <td>{{ u.Email }}</td>
-            <td>{{ u.NomeEquipe or '---' }}</td>
-
-            <td>{{ u.Hierarquia }}</td>
-            <td>{{ u.Status }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div id="paginacao"></div>
+  <aside class="sidebar">
+    <div class="brand">
+      <h2>ACS Ponto RH</h2>
+      <p>Painel premium para acompanhar colaboradores, escala, jornada, banco de horas e frequência com mais clareza.</p>
     </div>
+    <button class="nav-btn" data-section="colaboradores" onclick="mostrar('colaboradores')"><i class="fas fa-users"></i> Colaboradores</button>
+    <button class="nav-btn" data-section="ponto" onclick="mostrar('ponto')"><i class="fas fa-clock"></i> Registros de Ponto</button>
+    <button class="nav-btn" data-section="escala" onclick="mostrar('escala')"><i class="fas fa-calendar-alt"></i> Definir Escalas</button>
+    <button class="nav-btn" data-section="visualizar_escala" onclick="mostrar('visualizar_escala')"><i class="fas fa-eye"></i> Visualizar Escalas</button>
+    <button class="nav-btn" data-section="relatorio" onclick="mostrar('relatorio')"><i class="fas fa-chart-column"></i> Ranking</button>
+    <button class="nav-btn logout" onclick="window.location.href='/logout'"><i class="fas fa-sign-out-alt"></i> Sair</button>
+  </aside>
 
-    <div id="ponto" class="section {% if aba_ativa == 'ponto' %}active{% endif %}">
-      <h2><i class="fas fa-clock"></i> Registros de Ponto</h2>
-      <form method="GET" class="form-inline" action="/painel_rh">
+  <main class="main">
+    <div class="shell">
+      <section class="hero glass">
+        <div>
+          <h1>Painel de RH</h1>
+          <p>Organize escala, confira ponto, acompanhe saldo do período e filtre colaboradores por equipe com uma visão mais moderna e rápida para operação do dia a dia.</p>
+          <div class="hero-pills">
+            <div class="pill"><i class="fas fa-users"></i> {{ (resumo_colaboradores.total if resumo_colaboradores else usuarios|length) | default(0, true) }} colaboradores</div>
+            <div class="pill"><i class="fas fa-user-check"></i> {{ (resumo_colaboradores.ativos if resumo_colaboradores else 0) | default(0, true) }} ativos</div>
+            <div class="pill"><i class="fas fa-sitemap"></i> {{ (equipes | default([], true) | length) }} equipes</div>
+          </div>
+        </div>
+        <div class="hero-side">
+          <h3>Visão Rápida</h3>
+          <p>Use os atalhos abaixo para entrar direto nas áreas que o RH mais usa durante a rotina.</p>
+          <div class="mini-pills">
+            <div class="pill" onclick="mostrar('ponto')" style="cursor:pointer;"><i class="fas fa-filter"></i> Filtrar ponto</div>
+            <div class="pill" onclick="mostrar('escala')" style="cursor:pointer;"><i class="fas fa-calendar-plus"></i> Ajustar escala</div>
+            <div class="pill" onclick="mostrar('visualizar_escala')" style="cursor:pointer;"><i class="fas fa-table-list"></i> Ver jornada</div>
+          </div>
+        </div>
+      </section>
 
-        <input type="date" name="data_inicio" value="{{ data_inicio or '' }}">
-        <input type="date" name="data_fim" value="{{ data_fim or '' }}">
-        <select name="equipe_id" id="filtro-equipe-ponto" onchange="filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto')">
-          <option value="">-- Todas as equipes --</option>
-          {% for equipe in equipes or [] %}
-            <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
-          {% endfor %}
-        </select>
-        <select name="usuario_id" id="select-usuario-ponto">
-          <option value="">-- Todos os usuários --</option>
-          {% for u in usuarios %}
-            <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
-          {% endfor %}
-        </select>
-        <button class="btn" type="submit">Filtrar</button>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-list">
+            {% for categoria, mensagem in messages %}
+              <div class="flash {{ categoria }}">{{ mensagem }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <section class="summary-grid">
+        <article class="summary-card glass">
+          <i class="fas fa-users"></i>
+          <strong>{{ (resumo_colaboradores.total if resumo_colaboradores else usuarios|length) | default(0, true) }}</strong>
+          <span>Total de colaboradores</span>
+          <small>Base geral cadastrada para o RH.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-user-check"></i>
+          <strong>{{ (resumo_colaboradores.ativos if resumo_colaboradores else 0) | default(0, true) }}</strong>
+          <span>Ativos</span>
+          <small>Usuários prontos para operar.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-user-shield"></i>
+          <strong>{{ (resumo_colaboradores.staff if resumo_colaboradores else 0) | default(0, true) }}</strong>
+          <span>Supervisores</span>
+          <small>Perfis de acompanhamento de equipes.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-user-cog"></i>
+          <strong>{{ (resumo_colaboradores.rh if resumo_colaboradores else 0) | default(0, true) }}</strong>
+          <span>Perfis RH</span>
+          <small>Usuários com acesso de gestão de RH.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-users-slash"></i>
+          <strong>{{ (resumo_colaboradores.sem_equipe if resumo_colaboradores else 0) | default(0, true) }}</strong>
+          <span>Sem equipe</span>
+          <small>Colaboradores que ainda precisam ser vinculados.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-stopwatch"></i>
+          <strong>{{ quantidade_registros | default(0, true) }}</strong>
+          <span>Registros no período</span>
+          <small>Mostra o volume do filtro atual.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-arrow-trend-up"></i>
+          <strong class="{% if (saldo_final | default('00:00:00', true)).startswith('-') %}negativo{% else %}positivo{% endif %}">{{ saldo_final | default('00:00:00', true) }}</strong>
+          <span>Saldo do período</span>
+          <small>Resultado da jornada esperada vs ponto registrado.</small>
+        </article>
+        <article class="summary-card glass">
+          <i class="fas fa-clock-rotate-left"></i>
+          <strong>{{ media_horas | default('00:00:00', true) }}</strong>
+          <span>Média por dia</span>
+          <small>Tempo médio logado por registro filtrado.</small>
+        </article>
+      </section>
+
+      <section class="toolbar-row">
+        <article class="action-card glass" onclick="mostrar('colaboradores')">
+          <i class="fas fa-users"></i>
+          <strong>Base de colaboradores</strong>
+          <span>Pesquise por equipe, status e confira rapidamente quem está cadastrado.</span>
+        </article>
+        <article class="action-card glass" onclick="mostrar('ponto')">
+          <i class="fas fa-business-time"></i>
+          <strong>Conferir ponto</strong>
+          <span>Filtre por período, equipe e colaborador com saldo já calculado.</span>
+        </article>
+        <article class="action-card glass" onclick="mostrar('escala')">
+          <i class="fas fa-calendar-plus"></i>
+          <strong>Definir escalas</strong>
+          <span>Escolha um colaborador e copie horários com mais rapidez.</span>
+        </article>
+        <article class="action-card glass" onclick="mostrar('visualizar_escala')">
+          <i class="fas fa-eye"></i>
+          <strong>Visualizar jornada</strong>
+          <span>Veja a semana completa por colaborador e exporte em PDF.</span>
+        </article>
+        <article class="action-card glass" onclick="mostrar('relatorio')">
+          <i class="fas fa-chart-column"></i>
+          <strong>Ranking e frequência</strong>
+          <span>Analise a presença por período em uma leitura mais visual.</span>
+        </article>
+      </section>
+
+      <section id="colaboradores" class="section glass {% if aba_ativa == 'colaboradores' %}active{% endif %}">
+        <div class="section-head">
+          <div>
+            <h2>Colaboradores</h2>
+            <p>Pesquise rapidamente por nome e filtre por equipe para localizar qualquer colaborador sem precisar navegar por listas grandes.</p>
+          </div>
+          <span class="tag info"><i class="fas fa-table-list"></i> Base geral</span>
+        </div>
+
+        <div class="toolbar-filtros">
+          <input type="text" id="filtro-nome" placeholder="Filtrar por nome ou email...">
+          <select id="filtro-equipe-colaboradores">
+            <option value="">Todas as equipes</option>
+            {% for equipe in equipes | default([], true) %}
+              <option value="{{ equipe.NomeEquipe }}">{{ equipe.NomeEquipe }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table id="tabela-colaboradores">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Equipe</th>
+                <th>Hierarquia</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in usuarios %}
+              <tr data-equipe="{{ u.NomeEquipe or '' }}">
+                <td>{{ u.Nome }}</td>
+                <td>{{ u.Email }}</td>
+                <td>{{ u.NomeEquipe or '---' }}</td>
+                <td><span class="tag info">{{ u.Hierarquia }}</span></td>
+                <td>
+                  <span class="tag {% if (u.Status or '').lower() == 'ativo' %}success{% else %}danger{% endif %}">
+                    {{ u.Status }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div id="paginacao"></div>
+      </section>
+
+      <section id="ponto" class="section glass {% if aba_ativa == 'ponto' %}active{% endif %}">
+        <div class="section-head">
+          <div>
+            <h2>Registros de Ponto</h2>
+            <p>Filtre por período, equipe e colaborador para analisar jornada esperada, saldo diário e banco de horas do período selecionado.</p>
+          </div>
+          <span class="tag {% if (saldo_final | default('00:00:00', true)).startswith('-') %}danger{% else %}success{% endif %}">
+            <i class="fas fa-scale-balanced"></i> Saldo: {{ saldo_final | default('00:00:00', true) }}
+          </span>
+        </div>
+
+        <form method="GET" class="form-inline" action="/painel_rh">
+          <input type="date" name="data_inicio" value="{{ data_inicio or '' }}">
+          <input type="date" name="data_fim" value="{{ data_fim or '' }}">
+          <select name="equipe_id" id="filtro-equipe-ponto" onchange="filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto')">
+            <option value="">-- Todas as equipes --</option>
+            {% for equipe in equipes | default([], true) %}
+              <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
+            {% endfor %}
+          </select>
+          <select name="usuario_id" id="select-usuario-ponto">
+            <option value="">-- Todos os usuários --</option>
+            {% for u in usuarios %}
+              <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+          {% if registros %}
+            <button type="button" class="btn" onclick="imprimir('bloco-ponto')"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+          {% endif %}
+        </form>
+
         {% if registros %}
-          <button type="button" class="btn" onclick="imprimir('tabela-ponto')"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-        {% endif %}
-      </form>
+        <div class="subcards">
+          <div class="subcard"><strong>{{ quantidade_registros | default(0, true) }}</strong><span>Registros no período</span></div>
+          <div class="subcard"><strong>{{ total_colaboradores_filtrados | default(0, true) }}</strong><span>Colaboradores no filtro</span></div>
+          <div class="subcard"><strong>{{ total_horas | default('00:00:00', true) }}</strong><span>Total logado</span></div>
+          <div class="subcard"><strong>{{ total_esperado | default('00:00:00', true) }}</strong><span>Total esperado</span></div>
+          <div class="subcard"><strong class="positivo">{{ total_banco_positivo | default('00:00:00', true) }}</strong><span>Banco positivo</span></div>
+          <div class="subcard"><strong class="negativo">{{ total_banco_negativo | default('00:00:00', true) }}</strong><span>Banco negativo</span></div>
+        </div>
 
-      {% if registros %}
-      <div class="cards-resumo">
-        <div class="card-resumo"><strong>{{ quantidade_registros or 0 }}</strong><span>Registros no período</span></div>
-        <div class="card-resumo"><strong>{{ total_colaboradores_filtrados or 0 }}</strong><span>Colaboradores no filtro</span></div>
-        <div class="card-resumo"><strong>{{ total_horas or '00:00:00' }}</strong><span>Total logado</span></div>
-        <div class="card-resumo"><strong>{{ media_horas or '00:00:00' }}</strong><span>Média por dia</span></div>
-        <div class="card-resumo"><strong style="color: {% if saldo_final and saldo_final.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_final or '00:00:00' }}</strong><span>Saldo no período</span></div>
-      </div>
-      <div class="toolbar-filtros">
-        <input type="text" id="filtro-ponto-busca" placeholder="Buscar nas linhas de ponto...">
-      </div>
-      {% endif %}
-  
-      {% if registros %}
-      <table id="tabela-ponto">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Data</th>
-            <th>Entrada</th>
-            <th>Pausa</th>
-            <th>Volta Pausa</th>
-            <th>Saída</th>
-            <th>Tempo Logado</th>
-            <th>Jornada Esperada</th>
-            <th>Saldo do Dia</th>
-            <th>Motivo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for nome, data, entrada, pausa, volta, saida, tempo_logado, jornada_esperada, saldo_dia, corr_entrada, corr_pausa, corr_volta, corr_saida, motivo in registros %}
-          <tr>
-            <td>{{ nome }}</td>
-            <td>{{ data.strftime('%d/%m/%Y') }}</td>
-            <td>{{ entrada }}{% if corr_entrada %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
-            <td>{{ pausa }}{% if corr_pausa %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
-            <td>{{ volta }}{% if corr_volta %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
-            <td>{{ saida }}{% if corr_saida %}<br><span style="color: lightgreen;">Alterado</span>{% endif %}</td>
-            <td>{{ tempo_logado }}</td>
-            <td>{{ jornada_esperada }}</td>
-            <td style="color: {% if saldo_dia.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_dia }}</td>
-            <td>{{ motivo or '-' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="totais">
-        Total logado: <b>{{ total_horas }}</b> |
-        Total esperado: <b>{{ total_esperado }}</b> |
-        Saldo do período: <b style="color: {% if saldo_final.startswith('-') %}#ff8a80{% else %}#7ee787{% endif %};">{{ saldo_final }}</b> |
-        Banco positivo: <b style="color: #7ee787;">{{ total_banco_positivo }}</b> |
-        Banco negativo: <b style="color: #ff8a80;">{{ total_banco_negativo }}</b>
-      </div>
-      {% else %}
-      <p style="margin-top: 20px;">
-        {% if data_inicio and data_fim %}
-          Nenhum registro encontrado para o filtro.
+        <div class="toolbar-filtros">
+          <input type="text" id="filtro-ponto-busca" placeholder="Buscar nas linhas de ponto...">
+        </div>
+
+        <div id="bloco-ponto">
+          <div class="table-wrap">
+            <table id="tabela-ponto">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Data</th>
+                  <th>Entrada</th>
+                  <th>Pausa</th>
+                  <th>Volta Pausa</th>
+                  <th>Saída</th>
+                  <th>Tempo Logado</th>
+                  <th>Jornada Esperada</th>
+                  <th>Saldo do Dia</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for nome, data, entrada, pausa, volta, saida, tempo_logado, jornada_esperada, saldo_dia, corr_entrada, corr_pausa, corr_volta, corr_saida, motivo in registros %}
+                <tr>
+                  <td>{{ nome }}</td>
+                  <td>{{ data.strftime('%d/%m/%Y') }}</td>
+                  <td>{{ entrada }}{% if corr_entrada %}<br><span class="tag warning" style="margin-top:8px;">Alterado</span>{% endif %}</td>
+                  <td>{{ pausa }}{% if corr_pausa %}<br><span class="tag warning" style="margin-top:8px;">Alterado</span>{% endif %}</td>
+                  <td>{{ volta }}{% if corr_volta %}<br><span class="tag warning" style="margin-top:8px;">Alterado</span>{% endif %}</td>
+                  <td>{{ saida }}{% if corr_saida %}<br><span class="tag warning" style="margin-top:8px;">Alterado</span>{% endif %}</td>
+                  <td>{{ tempo_logado }}</td>
+                  <td>{{ jornada_esperada }}</td>
+                  <td>
+                    <span class="tag {% if saldo_dia.startswith('-') %}danger{% else %}success{% endif %}">
+                      {{ saldo_dia }}
+                    </span>
+                  </td>
+                  <td>{{ motivo or '-' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="totais">
+          <span>Total logado: <b>{{ total_horas | default('00:00:00', true) }}</b></span>
+          <span>Total esperado: <b>{{ total_esperado | default('00:00:00', true) }}</b></span>
+          <span>Saldo do período: <b style="color: {% if (saldo_final | default('00:00:00', true)).startswith('-') %}#fca5a5{% else %}#86efac{% endif %};">{{ saldo_final | default('00:00:00', true) }}</b></span>
+          <span>Banco positivo: <b style="color:#86efac;">{{ total_banco_positivo | default('00:00:00', true) }}</b></span>
+          <span>Banco negativo: <b style="color:#fca5a5;">{{ total_banco_negativo | default('00:00:00', true) }}</b></span>
+        </div>
         {% else %}
-          Selecione um período para visualizar os registros de ponto e o banco de horas.
+          <div class="empty-state">
+            {% if data_inicio and data_fim %}
+              Nenhum registro encontrado para esse filtro. Ajuste o período, equipe ou colaborador para tentar novamente.
+            {% else %}
+              Selecione um período para visualizar os registros de ponto e o banco de horas.
+            {% endif %}
+          </div>
         {% endif %}
-      </p>
-      {% endif %}
-    </div>
-      
-       
-    
+      </section>
 
-    <div id="escala" class="section {% if aba_ativa == 'escala' %}active{% endif %}">
+      <section id="escala" class="section glass {% if aba_ativa == 'escala' %}active{% endif %}">
+        <div class="section-head">
+          <div>
+            <h2>Definir Escalas</h2>
+            <p>Selecione a equipe, escolha um colaborador e use modelos ou cópia de horário para montar a escala semanal mais rápido.</p>
+          </div>
+          <span class="tag info"><i class="fas fa-calendar-days"></i> Escala semanal</span>
+        </div>
 
-      <h2><i class="fas fa-calendar-alt"></i> Escalas Semanais</h2>
-      <form method="POST" action="{{ url_for('definir_jornada') }}">
-        <div class="scale-controls">
-          <label>Colaborador:</label>
-          <select id="filtro-equipe-definir" onchange="filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir')">
-            <option value="">-- Filtrar equipe --</option>
-            {% for equipe in equipes or [] %}
-              <option value="{{ equipe.ID }}">{{ equipe.NomeEquipe }}</option>
+        <form method="POST" action="{{ url_for('definir_jornada') }}">
+          <div class="scale-controls">
+            <select id="filtro-equipe-definir" onchange="filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir')">
+              <option value="">-- Filtrar equipe --</option>
+              {% for equipe in equipes | default([], true) %}
+                <option value="{{ equipe.ID }}">{{ equipe.NomeEquipe }}</option>
+              {% endfor %}
+            </select>
+            <select name="usuario_id" id="select-usuario-definir" required>
+              <option value="">-- Escolha um colaborador --</option>
+              {% for u in usuarios %}
+                <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}">{{ u.Nome }}</option>
+              {% endfor %}
+            </select>
+            <select id="modelo" onchange="aplicarModelo()">
+              <option value="personalizado">Personalizado</option>
+              <option value="5x2">5x2 (Seg-Sex)</option>
+              <option value="6x1">6x1 (Seg-Sáb)</option>
+              <option value="12x36">12x36</option>
+            </select>
+            <button type="button" class="btn" onclick="copiarHorarios()"><i class="fas fa-copy"></i> Copiar horários</button>
+          </div>
+
+          <div class="scale-grid">
+            {% for dia in ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] %}
+            <div class="scale-row">
+              <label><input type="checkbox" name="ativo_{{ dia }}" id="check-{{ dia }}"> {{ dia.capitalize() }}</label>
+              <label>Entrada <input type="time" name="entrada_{{ dia }}"></label>
+              <label>Pausa <input type="time" name="pausa_{{ dia }}"></label>
+              <label>Volta <input type="time" name="volta_pausa_{{ dia }}"></label>
+              <label>Saída <input type="time" name="saida_{{ dia }}"></label>
+            </div>
+            {% endfor %}
+          </div>
+          <button class="btn" type="submit" style="margin-top:18px;"><i class="fas fa-floppy-disk"></i> Salvar Escala</button>
+        </form>
+      </section>
+
+      <section id="visualizar_escala" class="section glass {% if aba_ativa == 'visualizar_escala' %}active{% endif %}">
+        <div class="section-head">
+          <div>
+            <h2>Visualizar Escala</h2>
+            <p>Consulte a semana completa por colaborador, filtrando por equipe e localizando horários rapidamente com busca na tabela.</p>
+          </div>
+          <span class="tag info"><i class="fas fa-eye"></i> Consulta semanal</span>
+        </div>
+
+        <form method="GET" class="form-inline" action="/visualizar_escala">
+          <select name="equipe_id" id="filtro-equipe-escala" onchange="filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala')">
+            <option value="">-- Todas as equipes --</option>
+            {% for equipe in equipes | default([], true) %}
+              <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
             {% endfor %}
           </select>
-          <select name="usuario_id" id="select-usuario-definir" required>
+          <select name="usuario_id" id="select-usuario-escala" required>
             <option value="">-- Escolha um colaborador --</option>
-            {% for u in usuarios %}<option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}">{{ u.Nome }}</option>{% endfor %}
+            {% for u in usuarios %}
+              <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
+            {% endfor %}
           </select>
-          <label>Modelo:</label>
-          <select id="modelo" onchange="aplicarModelo()">
-            <option value="personalizado">Personalizado</option>
-            <option value="5x2">5x2 (Seg-Sex)</option>
-            <option value="6x1">6x1 (Seg-Sáb)</option>
-            <option value="12x36">12x36</option>
-          </select>
-          <button type="button" class="btn" onclick="copiarHorarios()">Copiar horários para os outros dias marcados</button>
-        </div>
-        {% for dia in ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] %}
-        <div class="scale-row">
-          <label><input type="checkbox" name="ativo_{{ dia }}" id="check-{{ dia }}"> {{ dia.capitalize() }}</label>
-          <label>Entrada: <input type="time" name="entrada_{{ dia }}"></label>
-          <label>Pausa: <input type="time" name="pausa_{{ dia }}"></label>
-          <label>Volta: <input type="time" name="volta_pausa_{{ dia }}"></label>
-          <label>Saída: <input type="time" name="saida_{{ dia }}"></label>
-        </div>
-        {% endfor %}
-        <button class="btn" type="submit">Salvar Escala</button>
-      </form>
-    </div>
-    
+          <button type="submit" class="btn"><i class="fas fa-magnifying-glass"></i> Ver Escala</button>
+          {% if escala %}
+            <button type="button" class="btn" onclick="imprimir('bloco-escala')"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+          {% endif %}
+        </form>
 
-
-    <div id="visualizar_escala" class="section {% if aba_ativa == 'visualizar_escala' %}active{% endif %}">
-      <h2><i class="fas fa-calendar-check"></i> Visualizar Escala</h2>
-      <form method="GET" class="form-inline" action="/visualizar_escala">
-        <label>Equipe:</label>
-        <select name="equipe_id" id="filtro-equipe-escala" onchange="filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala')">
-          <option value="">-- Todas as equipes --</option>
-          {% for equipe in equipes or [] %}
-            <option value="{{ equipe.ID }}" {% if equipe_id == equipe.ID|string %}selected{% endif %}>{{ equipe.NomeEquipe }}</option>
-          {% endfor %}
-        </select>
-        <label>Colaborador:</label>
-        <select name="usuario_id" id="select-usuario-escala" required>
-          <option value="">-- Escolha um colaborador --</option>
-          {% for u in usuarios %}
-            <option value="{{ u.ID }}" data-equipe="{{ u.EquipeID or '' }}" {% if usuario_id == u.ID|string %}selected{% endif %}>{{ u.Nome }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn">Ver Escala</button>
         {% if escala %}
-          <button type="button" class="btn" onclick="imprimir('bloco-escala')">
-            <i class="fas fa-file-pdf"></i> Exportar PDF
-          </button>
+        <div class="toolbar-filtros">
+          <input type="text" id="filtro-escala-busca" placeholder="Buscar na escala por dia ou horário...">
+        </div>
+        <div id="bloco-escala">
+          <div class="subcards" style="margin-bottom:18px;">
+            <div class="subcard"><strong>{{ nome_colaborador or '---' }}</strong><span>Colaborador selecionado</span></div>
+            <div class="subcard"><strong>{{ equipe_id or 'Todas' }}</strong><span>Filtro de equipe</span></div>
+          </div>
+          <div class="table-wrap">
+            <table id="tabela-escala">
+              <thead>
+                <tr>
+                  <th>Dia da Semana</th>
+                  <th>Entrada</th>
+                  <th>Pausa</th>
+                  <th>Volta Pausa</th>
+                  <th>Saída</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-escala-body">
+                {% for dia, entrada, pausa, volta, saida in escala %}
+                <tr>
+                  <td>{{ dia.capitalize() }}</td>
+                  <td>{{ entrada.strftime('%H:%M') if entrada else '-' }}</td>
+                  <td>{{ pausa.strftime('%H:%M') if pausa else '-' }}</td>
+                  <td>{{ volta.strftime('%H:%M') if volta else '-' }}</td>
+                  <td>{{ saida.strftime('%H:%M') if saida else '-' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% elif usuario_id %}
+          <div class="empty-state">Nenhuma escala definida para esse colaborador.</div>
+        {% else %}
+          <div class="empty-state">Selecione uma equipe e um colaborador para visualizar a escala semanal.</div>
         {% endif %}
-      </form>
-    
-      {% if escala %}
-      <div class="toolbar-filtros">
-        <input type="text" id="filtro-escala-busca" placeholder="Buscar na escala por dia ou horário...">
-      </div>
-      <div id="bloco-escala">
-        <h3 style="margin-top: 20px; color: #00bcd4;">Escala do Colaborador: {{ nome_colaborador or '---' }}</h3>
-    
-        <table id="tabela-escala">
-          <thead>
-            <tr>
-              <th>Dia da Semana</th>
-              <th>Entrada</th>
-              <th>Pausa</th>
-              <th>Volta Pausa</th>
-              <th>Saída</th>
-            </tr>
-          </thead>
-          <tbody id="tabela-escala-body">
-            {% for dia, entrada, pausa, volta, saida in escala %}
-            <tr>
-              <td>{{ dia.capitalize() }}</td>
-              <td>{{ entrada.strftime('%H:%M') if entrada else '-' }}</td>
-              <td>{{ pausa.strftime('%H:%M') if pausa else '-' }}</td>
-              <td>{{ volta.strftime('%H:%M') if volta else '-' }}</td>
-              <td>{{ saida.strftime('%H:%M') if saida else '-' }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% elif usuario_id %}
-        <p style="margin-top: 20px;">Nenhuma escala definida para esse colaborador.</p>
-      {% endif %}
-    </div>
-    <div id="relatorio" class="section {% if aba_ativa == 'relatorio' %}active{% endif %}">
-      <h3 style="color: #00bcd4; margin-bottom: 20px;"><i class="fas fa-chart-bar"></i> Ranking de Frequência</h3>
-    
-      <form method="GET" action="/relatorios_rh" class="form-inline" style="margin-bottom: 20px;">
-        <label>Início:</label>
-        <input type="date" name="data_inicio" value="{{ request.args.get('data_inicio', '') }}" required>
-        <label>Fim:</label>
-        <input type="date" name="data_fim" value="{{ request.args.get('data_fim', '') }}" required>
-        <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
-      </form>
-    
-      {% if ranking_frequencia %}
-        <table id="tabela-ranking" style="width: 100%; border-collapse: collapse; background-color: #1f2d3d; border-radius: 8px; overflow: hidden;">
-          <thead>
-            <tr>
-              <th style="padding: 14px; background-color: #00bcd4; color: white;">Colaborador</th>
-              <th style="padding: 14px; background-color: #00bcd4; color: white;">Dias logados</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for nome, dias in ranking_frequencia %}
-            <tr style="border-bottom: 1px solid #2e3e50;">
-              <td style="padding: 14px; color: #e0e0e0;">{{ nome }}</td>
-              <td style="padding: 14px; color: #e0e0e0;">{{ dias }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <canvas id="graficoFrequencia" height="100" style="margin-top: 30px;"></canvas>
-      {% else %}
-        <p style="margin-top: 20px;">Nenhum dado encontrado para o período selecionado.</p>
-      {% endif %}
-    </div>
-  
+      </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <section id="relatorio" class="section glass {% if aba_ativa == 'relatorio' %}active{% endif %}">
+        <div class="section-head">
+          <div>
+            <h2>Ranking de Frequência</h2>
+            <p>Analise quem mais registrou entrada no período e acompanhe visualmente a frequência dos colaboradores.</p>
+          </div>
+          <span class="tag info"><i class="fas fa-chart-bar"></i> Relatório</span>
+        </div>
+
+        <form method="GET" action="/relatorios_rh" class="form-inline">
+          <input type="date" name="data_inicio" value="{{ request.args.get('data_inicio', '') }}" required>
+          <input type="date" name="data_fim" value="{{ request.args.get('data_fim', '') }}" required>
+          <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+        </form>
+
+        {% if ranking_frequencia %}
+          <div class="chart-panel">
+            <div class="table-wrap">
+              <table id="tabela-ranking">
+                <thead>
+                  <tr>
+                    <th>Colaborador</th>
+                    <th>Dias logados</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for nome, dias in ranking_frequencia %}
+                  <tr>
+                    <td>{{ nome }}</td>
+                    <td><span class="tag success">{{ dias }} dias</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <canvas id="graficoFrequencia"></canvas>
+          </div>
+        {% else %}
+          <div class="empty-state">Nenhum dado encontrado para o período selecionado.</div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+
   <script>
     function mostrar(secao) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById(secao).classList.add('active');
+      document.querySelectorAll('.section').forEach((item) => item.classList.remove('active'));
+      const target = document.getElementById(secao);
+      if (target) {
+        target.classList.add('active');
+      }
+
+      document.querySelectorAll('.nav-btn[data-section]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.section === secao);
+      });
     }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      const filtro = document.getElementById('filtro-nome');
-      const linhas = [...document.querySelectorAll('#tabela-colaboradores tbody tr')];
-      const paginacaoDiv = document.getElementById('paginacao');
-      const filtroEquipe = document.getElementById('filtro-equipe-colaboradores');
-      const linhasPorPagina = 10;
-      let paginaAtual = 1;
-
-      function exibirPagina(pagina) {
-        const termo = filtro.value.toLowerCase();
-        const equipeSelecionada = (filtroEquipe?.value || '').toLowerCase();
-        const filtradas = linhas.filter(l => {
-          const nomeOk = l.children[0].textContent.toLowerCase().includes(termo);
-          const equipeLinha = (l.dataset.equipe || '').toLowerCase();
-          const equipeOk = !equipeSelecionada || equipeLinha === equipeSelecionada;
-          return nomeOk && equipeOk;
-        });
-        const inicio = (pagina - 1) * linhasPorPagina;
-        const fim = inicio + linhasPorPagina;
-        linhas.forEach(l => l.style.display = "none");
-        filtradas.slice(inicio, fim).forEach(l => l.style.display = "");
-        criarBotoes(filtradas.length, pagina);
-      }
-
-      function criarBotoes(total, atual) {
-        paginacaoDiv.innerHTML = "";
-        const totalPaginas = Math.ceil(total / linhasPorPagina);
-        for (let i = 1; i <= totalPaginas; i++) {
-          const b = document.createElement("button");
-          b.textContent = i;
-          b.className = i === atual ? "active" : "";
-          b.onclick = () => exibirPagina(i);
-          paginacaoDiv.appendChild(b);
-        }
-      }
-
-      filtro.addEventListener("input", () => {
-        paginaAtual = 1;
-        exibirPagina(paginaAtual);
-      });
-
-      filtroEquipe?.addEventListener("change", () => {
-        paginaAtual = 1;
-        exibirPagina(paginaAtual);
-      });
-
-      exibirPagina(paginaAtual);
-
-      filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto');
-      filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala');
-      filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir');
-
-      ativarFiltroTabela('filtro-ponto-busca', '#tabela-ponto tbody tr');
-      ativarFiltroTabela('filtro-escala-busca', '#tabela-escala-body tr');
-    });
 
     function filtrarUsuariosSelect(idEquipe, idUsuario) {
       const selectEquipe = document.getElementById(idEquipe);
@@ -692,27 +1119,25 @@
       });
     }
 
-    
-
     function aplicarModelo() {
       const modelo = document.getElementById('modelo').value;
-      const dias = ['segunda','terca','quarta','quinta','sexta','sabado','domingo'];
+      const dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
       const mapa = {
         '5x2': dias.slice(0, 5),
         '6x1': dias.slice(0, 6),
         '12x36': ['segunda', 'quarta', 'sexta', 'domingo'],
         'personalizado': []
       };
-      dias.forEach(dia => {
+      dias.forEach((dia) => {
         const checkbox = document.getElementById('check-' + dia);
         checkbox.checked = mapa[modelo].includes(dia);
       });
     }
 
     function copiarHorarios() {
-      const dias = ['segunda','terca','quarta','quinta','sexta','sabado','domingo'];
+      const dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
       let origem = null;
-      for (let dia of dias) {
+      for (const dia of dias) {
         if (document.getElementById(`check-${dia}`).checked) {
           origem = dia;
           break;
@@ -728,7 +1153,7 @@
         volta: document.querySelector(`input[name='volta_pausa_${origem}']`).value,
         saida: document.querySelector(`input[name='saida_${origem}']`).value
       };
-      for (let dia of dias) {
+      for (const dia of dias) {
         if (dia === origem) continue;
         if (document.getElementById(`check-${dia}`).checked) {
           document.querySelector(`input[name='entrada_${dia}']`).value = horarios.entrada;
@@ -738,88 +1163,126 @@
         }
       }
     }
-    function mostrar(secao) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById(secao).classList.add('active');
-}
 
-function imprimir(idTabela) {
-    const tabela = document.getElementById(idTabela);
-    const opt = {
-      margin: 0.5,
-      filename: 'registros_ponto.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' } // orientação paisagem
-    };
+    function imprimir(idBloco) {
+      const bloco = document.getElementById(idBloco);
+      if (!bloco) return;
+      const opt = {
+        margin: 0.5,
+        filename: 'relatorio_rh.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+      };
+      html2pdf().set(opt).from(bloco).save();
+    }
 
-    html2pdf().set(opt).from(tabela).save();
-  }
+    document.addEventListener('DOMContentLoaded', function () {
+      const secaoAtiva = document.querySelector('.section.active')?.id || '{{ aba_ativa or "colaboradores" }}';
+      mostrar(secaoAtiva);
 
-  {% if grafico_labels and grafico_dados %}
-  const ctx = document.getElementById('grafico-semanal').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: {{ grafico_labels | safe }},
-      datasets: [{
-        label: 'Horas por Semana',
-        data: {{ grafico_dados | safe }},
-        borderWidth: 1
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true
+      const filtro = document.getElementById('filtro-nome');
+      const linhas = [...document.querySelectorAll('#tabela-colaboradores tbody tr')];
+      const paginacaoDiv = document.getElementById('paginacao');
+      const filtroEquipe = document.getElementById('filtro-equipe-colaboradores');
+      const linhasPorPagina = 10;
+      let paginaAtual = 1;
+
+      function exibirPagina(pagina) {
+        if (!filtro || !paginacaoDiv) return;
+        const termo = filtro.value.toLowerCase();
+        const equipeSelecionada = (filtroEquipe?.value || '').toLowerCase();
+        const filtradas = linhas.filter((linha) => {
+          const textoLinha = linha.textContent.toLowerCase();
+          const equipeLinha = (linha.dataset.equipe || '').toLowerCase();
+          const bateTexto = !termo || textoLinha.includes(termo);
+          const bateEquipe = !equipeSelecionada || equipeLinha === equipeSelecionada;
+          return bateTexto && bateEquipe;
+        });
+
+        const inicio = (pagina - 1) * linhasPorPagina;
+        const fim = inicio + linhasPorPagina;
+        linhas.forEach((linha) => {
+          linha.style.display = 'none';
+        });
+        filtradas.slice(inicio, fim).forEach((linha) => {
+          linha.style.display = '';
+        });
+        criarBotoes(filtradas.length, pagina);
+      }
+
+      function criarBotoes(total, atual) {
+        paginacaoDiv.innerHTML = '';
+        const totalPaginas = Math.ceil(total / linhasPorPagina) || 1;
+        for (let i = 1; i <= totalPaginas; i += 1) {
+          const botao = document.createElement('button');
+          botao.textContent = i;
+          botao.className = i === atual ? 'active' : '';
+          botao.onclick = () => exibirPagina(i);
+          paginacaoDiv.appendChild(botao);
         }
       }
-    }
-  });
-  {% endif %}
 
-  const graficoFrequencia = document.getElementById('graficoFrequencia');
-  if (graficoFrequencia) {
-    const ctx = graficoFrequencia.getContext('2d');
-    const nomes = {{ ranking_frequencia | default([], true) | map(attribute=0) | list | tojson }};
-    const valores = {{ ranking_frequencia | default([], true) | map(attribute=1) | list | tojson }};
+      if (filtro) {
+        filtro.addEventListener('input', () => {
+          paginaAtual = 1;
+          exibirPagina(paginaAtual);
+        });
+      }
 
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: nomes,
-        datasets: [{
-          label: 'Dias com Entrada',
-          data: valores,
-          borderWidth: 1,
-          backgroundColor: '#00bcd4'
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => `${ctx.raw} dias` } }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              color: '#e0e0e0',
-              stepSize: 1
-            },
-            grid: { color: '#333' }
+      filtroEquipe?.addEventListener('change', () => {
+        paginaAtual = 1;
+        exibirPagina(paginaAtual);
+      });
+
+      exibirPagina(paginaAtual);
+
+      filtrarUsuariosSelect('filtro-equipe-ponto', 'select-usuario-ponto');
+      filtrarUsuariosSelect('filtro-equipe-escala', 'select-usuario-escala');
+      filtrarUsuariosSelect('filtro-equipe-definir', 'select-usuario-definir');
+
+      ativarFiltroTabela('filtro-ponto-busca', '#tabela-ponto tbody tr');
+      ativarFiltroTabela('filtro-escala-busca', '#tabela-escala-body tr');
+
+      const graficoFrequencia = document.getElementById('graficoFrequencia');
+      if (graficoFrequencia) {
+        const ctx = graficoFrequencia.getContext('2d');
+        const nomes = {{ ranking_frequencia | default([], true) | map(attribute=0) | list | tojson }};
+        const valores = {{ ranking_frequencia | default([], true) | map(attribute=1) | list | tojson }};
+
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: nomes,
+            datasets: [{
+              label: 'Dias com Entrada',
+              data: valores,
+              borderWidth: 1,
+              backgroundColor: '#22d3ee',
+              borderRadius: 10
+            }]
           },
-          x: {
-            ticks: { color: '#e0e0e0' },
-            grid: { display: false }
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (item) => `${item.raw} dias` } }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { color: '#e0e0e0', stepSize: 1 },
+                grid: { color: 'rgba(148, 163, 184, 0.14)' }
+              },
+              x: {
+                ticks: { color: '#e0e0e0' },
+                grid: { display: false }
+              }
+            }
           }
-        }
+        });
       }
     });
-  }
-</script>
-
-
+  </script>
 </body>
 </html>
