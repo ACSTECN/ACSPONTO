@@ -166,10 +166,14 @@ def calcular_duracao_turno(entrada, saida, pausa=None, volta_pausa=None):
 
 
 def obter_dashboard_admin(cursor):
+    hoje = date.today()
+    ultimos_7_dias = [hoje - timedelta(days=offset) for offset in range(6, -1, -1)]
+
     cursor.execute("""
         SELECT
             COUNT(*) AS total_usuarios,
             COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'ativo') AS usuarios_ativos,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'inativo') AS usuarios_inativos,
             COUNT(*) FILTER (WHERE COALESCE(logged_in, false) = true) AS usuarios_online,
             COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'admin') AS total_admins,
             COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'rh') AS total_rh,
@@ -181,6 +185,7 @@ def obter_dashboard_admin(cursor):
     (
         total_usuarios,
         usuarios_ativos,
+        usuarios_inativos,
         usuarios_online,
         total_admins,
         total_rh,
@@ -205,17 +210,132 @@ def obter_dashboard_admin(cursor):
         for row in cursor.fetchall()
     ]
 
+    cursor.execute("""
+        WITH ponto_dia AS (
+            SELECT
+                usuario_id,
+                COUNT(*) AS total_registros,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'entrada') AS entradas,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(tipo, '')) = 'saida') AS saidas
+            FROM ponto
+            WHERE data_registro = %s
+            GROUP BY usuario_id
+        )
+        SELECT
+            COALESCE(SUM(total_registros), 0) AS total_pontos_hoje,
+            COUNT(*) FILTER (WHERE entradas > 0) AS usuarios_com_entrada_hoje,
+            COUNT(*) FILTER (WHERE entradas > 0 AND saidas > 0) AS usuarios_jornada_completa_hoje,
+            COUNT(*) FILTER (WHERE entradas > 0 AND saidas = 0) AS usuarios_pendentes_saida
+        FROM ponto_dia
+    """, (hoje,))
+    (
+        total_pontos_hoje,
+        usuarios_com_entrada_hoje,
+        usuarios_jornada_completa_hoje,
+        usuarios_pendentes_saida,
+    ) = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM usuarios
+        WHERE LOWER(COALESCE(status, '')) = 'ativo'
+          AND LOWER(COALESCE(hierarquia, '')) IN ('normal', 'staff', 'admin')
+          AND id NOT IN (
+              SELECT DISTINCT usuario_id
+              FROM ponto
+              WHERE data_registro = %s
+          )
+    """, (hoje,))
+    usuarios_sem_registro_hoje = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT data_registro, COUNT(*) AS total
+        FROM ponto
+        WHERE data_registro BETWEEN %s AND %s
+        GROUP BY data_registro
+        ORDER BY data_registro
+    """, (ultimos_7_dias[0], hoje))
+    pontos_por_data = {row[0]: row[1] for row in cursor.fetchall()}
+    grafico_7dias_labels = [dia.strftime('%d/%m') for dia in ultimos_7_dias]
+    grafico_7dias_dados = [pontos_por_data.get(dia, 0) for dia in ultimos_7_dias]
+
+    cursor.execute("""
+        SELECT
+            u.nome,
+            p.tipo,
+            p.data_registro,
+            CASE
+                WHEN p.corrigido THEN COALESCE(p.hora_corrigida, p.hora_registro)
+                ELSE p.hora_registro
+            END AS hora_exibida,
+            COALESCE(p.abonado, false) AS abonado
+        FROM ponto p
+        JOIN usuarios u ON u.id = p.usuario_id
+        ORDER BY p.data_registro DESC, hora_exibida DESC
+        LIMIT 8
+    """)
+    atividade_recente = [
+        {
+            'nome': row[0],
+            'tipo': row[1],
+            'data': row[2].strftime('%d/%m/%Y') if row[2] else '-',
+            'hora': row[3].strftime('%H:%M') if row[3] else '-',
+            'abonado': bool(row[4]),
+        }
+        for row in cursor.fetchall()
+    ]
+
+    alertas = []
+    if usuarios_sem_equipe:
+        alertas.append({
+            'titulo': 'Usuarios sem equipe',
+            'descricao': f'{usuarios_sem_equipe} usuario(s) ainda nao estao vinculados a nenhuma equipe.',
+            'nivel': 'warning',
+        })
+    if usuarios_inativos:
+        alertas.append({
+            'titulo': 'Usuarios inativos cadastrados',
+            'descricao': f'{usuarios_inativos} usuario(s) estao marcados como inativos e merecem revisao.',
+            'nivel': 'info',
+        })
+    if usuarios_pendentes_saida:
+        alertas.append({
+            'titulo': 'Pendencias de saida hoje',
+            'descricao': f'{usuarios_pendentes_saida} colaborador(es) registraram entrada hoje mas ainda nao finalizaram a jornada.',
+            'nivel': 'danger',
+        })
+    if usuarios_sem_registro_hoje:
+        alertas.append({
+            'titulo': 'Sem registro hoje',
+            'descricao': f'{usuarios_sem_registro_hoje} usuario(s) ativos ainda nao registraram nenhum ponto hoje.',
+            'nivel': 'warning',
+        })
+
     return {
         'total_usuarios': total_usuarios,
         'usuarios_ativos': usuarios_ativos,
+        'usuarios_inativos': usuarios_inativos,
         'usuarios_online': usuarios_online,
         'total_admins': total_admins,
         'total_rh': total_rh,
         'total_staff': total_staff,
         'total_colaboradores': total_colaboradores,
         'usuarios_sem_equipe': usuarios_sem_equipe,
+        'usuarios_sem_registro_hoje': usuarios_sem_registro_hoje,
+        'usuarios_com_entrada_hoje': usuarios_com_entrada_hoje,
+        'usuarios_jornada_completa_hoje': usuarios_jornada_completa_hoje,
+        'usuarios_pendentes_saida': usuarios_pendentes_saida,
+        'total_pontos_hoje': total_pontos_hoje,
         'total_equipes': total_equipes,
         'equipes_resumo': equipes_resumo,
+        'maior_equipe_total': max((equipe['total'] for equipe in equipes_resumo), default=1),
+        'atividade_recente': atividade_recente,
+        'alertas': alertas,
+        'grafico_7dias_labels': grafico_7dias_labels,
+        'grafico_7dias_dados': grafico_7dias_dados,
+        'grafico_hierarquia_labels': ['Admin', 'RH', 'Staff', 'Normal'],
+        'grafico_hierarquia_dados': [total_admins, total_rh, total_staff, total_colaboradores],
+        'hoje_formatado': hoje.strftime('%d/%m/%Y'),
         'percentual_online': round((usuarios_online / total_usuarios) * 100) if total_usuarios else 0,
         'percentual_ativos': round((usuarios_ativos / total_usuarios) * 100) if total_usuarios else 0,
     }
