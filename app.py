@@ -536,6 +536,7 @@ def corrigir_ponto():
     tipo = request.form['tipo']
     nova_hora = request.form['hora']
     motivo = request.form['motivo']
+    usuario_editor = session['usuario_id']
 
     try:
         with conectar() as conn:
@@ -553,9 +554,13 @@ def corrigir_ponto():
             # Atualiza o registro correspondente
             cursor.execute("""
                 UPDATE ponto
-                SET hora_registro = %s, abonado = true, motivo_abono = %s
+                SET corrigido = true,
+                    hora_corrigida = %s,
+                    motivo_correcao = %s,
+                    corrigido_por = %s,
+                    data_hora_alteracao = now()
                 WHERE usuario_id = %s AND data_registro = %s AND tipo = %s
-            """, (nova_hora, motivo, usuario_id, data, tipo))
+            """, (nova_hora, motivo, usuario_editor, usuario_id, data, tipo))
 
             conn.commit()
             flash("Ponto corrigido com sucesso!", "success")
@@ -984,40 +989,58 @@ def painel_rh():
 
         if data_inicio and data_fim:
             query = """
-                SELECT u.id, u.nome, p.data_registro,
-                    MIN(CASE WHEN p.tipo = 'entrada' THEN
-                        CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
-                    END) AS entrada,
-                    MAX(CASE WHEN p.tipo = 'saida' THEN
-                        CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
-                    END) AS saida,
-                    MIN(CASE WHEN p.tipo = 'pausa' THEN
-                        CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
-                    END) AS pausa,
-                    MAX(CASE WHEN p.tipo = 'volta_pausa' THEN
-                        CASE WHEN p.corrigido THEN p.hora_corrigida ELSE p.hora_registro END
-                    END) AS volta_pausa,
-                    MAX(CASE WHEN p.tipo = 'entrada' THEN CASE WHEN p.corrigido THEN 1 ELSE 0 END END) AS corrigido_entrada,
-                    MAX(CASE WHEN p.tipo = 'pausa' THEN CASE WHEN p.corrigido THEN 1 ELSE 0 END END) AS corrigido_pausa,
-                    MAX(CASE WHEN p.tipo = 'volta_pausa' THEN CASE WHEN p.corrigido THEN 1 ELSE 0 END END) AS corrigido_volta,
-                    MAX(CASE WHEN p.tipo = 'saida' THEN CASE WHEN p.corrigido THEN 1 ELSE 0 END END) AS corrigido_saida,
-                    MAX(CASE WHEN p.tipo = 'entrada' THEN p.motivo_correcao END) AS motivo_entrada
-                FROM ponto p
-                JOIN usuarios u ON p.usuario_id = u.id
-                WHERE p.data_registro BETWEEN %s AND %s
+                WITH ponto_base AS (
+                    SELECT
+                        p.usuario_id,
+                        p.data_registro,
+                        p.tipo,
+                        CASE
+                            WHEN COALESCE(p.corrigido, false) = true
+                                OR p.hora_corrigida IS NOT NULL
+                                OR NULLIF(TRIM(COALESCE(p.motivo_correcao, '')), '') IS NOT NULL
+                            THEN COALESCE(p.hora_corrigida, p.hora_registro)
+                            ELSE p.hora_registro
+                        END AS hora_efetiva,
+                        CASE
+                            WHEN COALESCE(p.corrigido, false) = true
+                                OR p.hora_corrigida IS NOT NULL
+                                OR NULLIF(TRIM(COALESCE(p.motivo_correcao, '')), '') IS NOT NULL
+                                OR (p.corrigido_por IS NOT NULL AND p.data_hora_alteracao IS NOT NULL)
+                            THEN 1
+                            ELSE 0
+                        END AS foi_ajustado,
+                        COALESCE(
+                            NULLIF(TRIM(COALESCE(p.motivo_correcao, '')), ''),
+                            NULLIF(TRIM(COALESCE(p.motivo_abono, '')), '')
+                        ) AS motivo_ajuste
+                    FROM ponto p
+                )
+                SELECT u.id, u.nome, pb.data_registro,
+                    MIN(CASE WHEN pb.tipo = 'entrada' THEN pb.hora_efetiva END) AS entrada,
+                    MAX(CASE WHEN pb.tipo = 'saida' THEN pb.hora_efetiva END) AS saida,
+                    MIN(CASE WHEN pb.tipo = 'pausa' THEN pb.hora_efetiva END) AS pausa,
+                    MAX(CASE WHEN pb.tipo = 'volta_pausa' THEN pb.hora_efetiva END) AS volta_pausa,
+                    MAX(CASE WHEN pb.tipo = 'entrada' THEN pb.foi_ajustado ELSE 0 END) AS corrigido_entrada,
+                    MAX(CASE WHEN pb.tipo = 'pausa' THEN pb.foi_ajustado ELSE 0 END) AS corrigido_pausa,
+                    MAX(CASE WHEN pb.tipo = 'volta_pausa' THEN pb.foi_ajustado ELSE 0 END) AS corrigido_volta,
+                    MAX(CASE WHEN pb.tipo = 'saida' THEN pb.foi_ajustado ELSE 0 END) AS corrigido_saida,
+                    STRING_AGG(DISTINCT pb.motivo_ajuste, ' | ') FILTER (WHERE pb.motivo_ajuste IS NOT NULL) AS motivo_ajuste
+                FROM ponto_base pb
+                JOIN usuarios u ON pb.usuario_id = u.id
+                WHERE pb.data_registro BETWEEN %s AND %s
             """
             params = [data_inicio, data_fim]
 
             if usuario_id:
-                query += " AND p.usuario_id = %s"
+                query += " AND pb.usuario_id = %s"
                 params.append(usuario_id)
             if equipe_id:
                 query += " AND u.equipe_id = %s"
                 params.append(equipe_id)
 
             query += """
-                GROUP BY u.id, u.nome, p.data_registro
-                ORDER BY u.nome, p.data_registro
+                GROUP BY u.id, u.nome, pb.data_registro
+                ORDER BY u.nome, pb.data_registro
             """
 
             cursor.execute(query, params)
