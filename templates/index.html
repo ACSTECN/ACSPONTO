@@ -795,8 +795,8 @@
 
     <script>
         function verPontosEquipe(event) {
-            const hierarquia = "{{ session.get('hierarquia') }}";
-            if (hierarquia === "staff") {
+            const podeVerPontosEquipe = {{ pode_ver_pontos_equipe | tojson }};
+            if (podeVerPontosEquipe) {
                 window.location.href = "{{ url_for('visualizar_pontos') }}";
             } else {
                 event.preventDefault();

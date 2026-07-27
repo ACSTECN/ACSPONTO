@@ -603,6 +603,47 @@
       cursor: pointer;
     }
 
+    .field-help {
+      margin-top: -2px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .role-selector {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .role-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: rgba(2, 6, 23, 0.55);
+      cursor: pointer;
+      transition: 0.2s ease;
+      color: var(--text);
+      margin-bottom: 0;
+    }
+
+    .role-option:hover {
+      border-color: rgba(34, 211, 238, 0.28);
+      transform: translateY(-1px);
+    }
+
+    .role-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #22d3ee;
+      flex: 0 0 auto;
+    }
+
     .table-wrap {
       overflow-x: auto;
       border-radius: 18px;
@@ -718,6 +759,13 @@
       font-size: 12px;
       font-weight: 700;
       text-transform: capitalize;
+    }
+
+    .role-chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
     }
 
     .pagination {
@@ -1054,13 +1102,14 @@
               <input type="password" name="password" required>
             </div>
             <div>
-              <label for="hierarquia">Hierarquia</label>
-              <select name="hierarquia">
-                <option value="normal">Normal</option>
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-                <option value="rh">RH</option>
-              </select>
+              <label>Hierarquias</label>
+              <p class="field-help">Pode marcar mais de uma hierarquia para o mesmo usuário.</p>
+              <div class="role-selector">
+                <label class="role-option"><input type="checkbox" name="hierarquia" value="normal" checked> Normal</label>
+                <label class="role-option"><input type="checkbox" name="hierarquia" value="staff"> Staff</label>
+                <label class="role-option"><input type="checkbox" name="hierarquia" value="admin"> Admin</label>
+                <label class="role-option"><input type="checkbox" name="hierarquia" value="rh"> RH</label>
+              </div>
               <label for="status">Status</label>
               <select name="status">
                 <option value="ativo">Ativo</option>
@@ -1110,9 +1159,15 @@
             </thead>
             <tbody>
               {% for usuario in usuarios %}
-              <tr data-status="{{ usuario.status|lower }}" data-hierarquia="{{ usuario.hierarquia|lower }}">
+              <tr data-status="{{ usuario.status|lower }}" data-hierarquia="{{ usuario.hierarquia_raw|lower }}">
                 <td>{{ usuario.usuario }}</td>
-                <td><span class="role-chip">{{ usuario.hierarquia }}</span></td>
+                <td>
+                  <div class="role-chip-group">
+                    {% for hierarquia in usuario.hierarquias_lista %}
+                      <span class="role-chip">{{ hierarquia }}</span>
+                    {% endfor %}
+                  </div>
+                </td>
                 <td>
                   <span class="status-chip {{ usuario.status|lower }}">{{ usuario.status }}</span>
                 </td>
@@ -1124,7 +1179,14 @@
                   {% endif %}
                 </td>
                 <td>
-                  <button class="btn-editar" onclick="abrirModal('{{ usuario.usuario }}', '{{ usuario.hierarquia }}', '{{ usuario.status }}')"><i class="fas fa-pen"></i> Editar</button>
+                  <button
+                    type="button"
+                    class="btn-editar"
+                    data-usuario="{{ usuario.usuario }}"
+                    data-hierarquia="{{ usuario.hierarquia_raw }}"
+                    data-status="{{ usuario.status }}"
+                    onclick="abrirModal(this)"
+                  ><i class="fas fa-pen"></i> Editar</button>
                   <form method="POST" action="{{ url_for('resetar_senha') }}" style="display:inline;">
                     <input type="hidden" name="username" value="{{ usuario.usuario }}">
                     <button type="submit" class="btn-resetar"><i class="fas fa-rotate"></i> Resetar</button>
@@ -1155,13 +1217,14 @@
       <h3>Editar Usuário</h3>
       <form method="POST" action="{{ url_for('editar_usuario') }}">
         <input type="hidden" name="usuario" id="edit-usuario">
-        <label>Hierarquia</label>
-        <select name="hierarquia" id="edit-hierarquia">
-          <option value="normal">Normal</option>
-          <option value="staff">Staff</option>
-          <option value="admin">Admin</option>
-          <option value="rh">RH</option>
-        </select>
+        <label>Hierarquias</label>
+        <p class="field-help">Escolha uma ou mais hierarquias para o usuário.</p>
+        <div class="role-selector" id="edit-hierarquia">
+          <label class="role-option"><input type="checkbox" name="hierarquia" value="normal"> Normal</label>
+          <label class="role-option"><input type="checkbox" name="hierarquia" value="staff"> Staff</label>
+          <label class="role-option"><input type="checkbox" name="hierarquia" value="admin"> Admin</label>
+          <label class="role-option"><input type="checkbox" name="hierarquia" value="rh"> RH</label>
+        </div>
         <label>Status</label>
         <select name="status" id="edit-status">
           <option value="ativo">Ativo</option>
@@ -1192,9 +1255,15 @@
       document.getElementById("formulario").classList.toggle("hidden");
     }
 
-    function abrirModal(usuario, hierarquia, status) {
+    function abrirModal(botao) {
+      const usuario = botao.dataset.usuario || "";
+      const hierarquia = (botao.dataset.hierarquia || "").split(",").filter(Boolean);
+      const status = botao.dataset.status || "ativo";
+
       document.getElementById("edit-usuario").value = usuario;
-      document.getElementById("edit-hierarquia").value = hierarquia;
+      document.querySelectorAll('#edit-hierarquia input[name="hierarquia"]').forEach((checkbox) => {
+        checkbox.checked = hierarquia.includes(checkbox.value);
+      });
       document.getElementById("edit-status").value = status;
       document.getElementById("modal-editar").style.display = "block";
     }
@@ -1235,7 +1304,7 @@
 
         const bateBusca = !busca || texto.includes(busca);
         const bateStatus = !status || linhaStatus === status;
-        const bateHierarquia = !hierarquia || linhaHierarquia === hierarquia;
+        const bateHierarquia = !hierarquia || linhaHierarquia.split(",").includes(hierarquia);
 
         linha.style.display = bateBusca && bateStatus && bateHierarquia ? "" : "none";
       });

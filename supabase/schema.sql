@@ -13,7 +13,9 @@ create table if not exists public.usuarios (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     constraint usuarios_email_key unique (email),
-    constraint usuarios_hierarquia_check check (hierarquia in ('admin', 'normal', 'staff', 'rh')),
+    constraint usuarios_hierarquia_check check (
+        regexp_replace(lower(coalesce(hierarquia, '')), '\s+', '', 'g') ~ '^(admin|normal|staff|rh)(,(admin|normal|staff|rh))*$'
+    ),
     constraint usuarios_status_check check (status in ('ativo', 'inativo'))
 );
 

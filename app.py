@@ -94,6 +94,48 @@ def nome_dia_semana(data_ref):
 
 
 TIPOS_PONTO = ['entrada', 'pausa', 'volta_pausa', 'saida']
+HIERARQUIAS_VALIDAS = ['admin', 'rh', 'staff', 'normal']
+HIERARQUIA_LABELS = {
+    'admin': 'Admin',
+    'rh': 'RH',
+    'staff': 'Staff',
+    'normal': 'Normal',
+}
+
+
+def normalizar_hierarquias(hierarquias):
+    if isinstance(hierarquias, (list, tuple, set)):
+        valores = list(hierarquias)
+    else:
+        valores = str(hierarquias or '').replace(';', ',').split(',')
+
+    hierarquias_normalizadas = []
+    for valor in valores:
+        hierarquia = str(valor or '').strip().lower()
+        if hierarquia and hierarquia in HIERARQUIAS_VALIDAS and hierarquia not in hierarquias_normalizadas:
+            hierarquias_normalizadas.append(hierarquia)
+
+    return hierarquias_normalizadas
+
+
+def serializar_hierarquias(hierarquias):
+    normalizadas = normalizar_hierarquias(hierarquias)
+    return ','.join(normalizadas)
+
+
+def formatar_hierarquias(hierarquias):
+    normalizadas = normalizar_hierarquias(hierarquias)
+    if not normalizadas:
+        return '-'
+    return ', '.join(HIERARQUIA_LABELS.get(hierarquia, hierarquia.title()) for hierarquia in normalizadas)
+
+
+def usuario_tem_hierarquia(hierarquias, hierarquia):
+    return hierarquia in normalizar_hierarquias(hierarquias)
+
+
+def sessao_tem_hierarquia(hierarquia):
+    return session.get('logged_in') and usuario_tem_hierarquia(session.get('hierarquia'), hierarquia)
 
 
 def proximo_tipo_esperado(tipos_registrados):
@@ -188,11 +230,13 @@ def validar_senha_e_migrar(cursor, usuario_id, senha_digitada, senha_armazenada)
 
 
 def iniciar_sessao_usuario(user_id, nome, email, hierarquia):
+    hierarquias = normalizar_hierarquias(hierarquia)
     session['logged_in'] = True
     session['usuario_id'] = user_id
     session['nome'] = nome
     session['email'] = email
-    session['hierarquia'] = hierarquia
+    session['hierarquia'] = serializar_hierarquias(hierarquias)
+    session['hierarquias'] = hierarquias
     session.permanent = True
 
 
@@ -226,30 +270,18 @@ def obter_dashboard_admin(cursor):
     # #endregion
 
     try:
-        cursor.execute("""
-            SELECT
-                COUNT(*) AS total_usuarios,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'ativo') AS usuarios_ativos,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) = 'inativo') AS usuarios_inativos,
-                COUNT(*) FILTER (WHERE COALESCE(logged_in, false) = true) AS usuarios_online,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'admin') AS total_admins,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'rh') AS total_rh,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'staff') AS total_staff,
-                COUNT(*) FILTER (WHERE LOWER(COALESCE(hierarquia, '')) = 'normal') AS total_colaboradores,
-                COUNT(*) FILTER (WHERE equipe_id IS NULL) AS usuarios_sem_equipe
-            FROM usuarios
-        """)
-        (
-            total_usuarios,
-            usuarios_ativos,
-            usuarios_inativos,
-            usuarios_online,
-            total_admins,
-            total_rh,
-            total_staff,
-            total_colaboradores,
-            usuarios_sem_equipe,
-        ) = cursor.fetchone()
+        cursor.execute("SELECT hierarquia, status, logged_in, equipe_id FROM usuarios")
+        usuarios_info = cursor.fetchall()
+
+        total_usuarios = len(usuarios_info)
+        usuarios_ativos = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if (status or '').lower() == 'ativo')
+        usuarios_inativos = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if (status or '').lower() == 'inativo')
+        usuarios_online = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if bool(logged_in))
+        total_admins = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if usuario_tem_hierarquia(hierarquia, 'admin'))
+        total_rh = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if usuario_tem_hierarquia(hierarquia, 'rh'))
+        total_staff = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if usuario_tem_hierarquia(hierarquia, 'staff'))
+        total_colaboradores = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if usuario_tem_hierarquia(hierarquia, 'normal'))
+        usuarios_sem_equipe = sum(1 for hierarquia, status, logged_in, equipe_id in usuarios_info if equipe_id is None)
 
         cursor.execute("SELECT COUNT(*) FROM equipes")
         total_equipes = cursor.fetchone()[0]
@@ -296,7 +328,6 @@ def obter_dashboard_admin(cursor):
             SELECT COUNT(*)
             FROM usuarios
             WHERE LOWER(COALESCE(status, '')) = 'ativo'
-              AND LOWER(COALESCE(hierarquia, '')) IN ('normal', 'staff', 'admin')
               AND id NOT IN (
                   SELECT DISTINCT usuario_id
                   FROM ponto
@@ -419,7 +450,7 @@ def sincronizar_sessao_com_banco():
     with conectar() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT logged_in, status FROM usuarios WHERE id = %s",
+            "SELECT logged_in, status, hierarquia FROM usuarios WHERE id = %s",
             (usuario_id,)
         )
         usuario = cursor.fetchone()
@@ -428,6 +459,9 @@ def sincronizar_sessao_com_banco():
         session.clear()
         flash('Sua sessão foi encerrada. Faça login novamente.', 'warning')
         return redirect(url_for('login'))
+
+    session['hierarquia'] = serializar_hierarquias(usuario[2])
+    session['hierarquias'] = normalizar_hierarquias(usuario[2])
 
     return None
 
@@ -483,7 +517,8 @@ def index():
             nome=nome_usuario,
             ano=agora_brasilia().year,
             pontos_dia=pontos_dict,
-            proximo_tipo=proximo_tipo
+            proximo_tipo=proximo_tipo,
+            pode_ver_pontos_equipe=sessao_tem_hierarquia('staff')
         )
 
     return redirect(url_for('login'))
@@ -492,7 +527,7 @@ def index():
 
 @app.route('/corrigir_ponto', methods=['POST'])
 def corrigir_ponto():
-    if 'logged_in' not in session or session['hierarquia'] != 'staff':
+    if not sessao_tem_hierarquia('staff'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('index'))
 
@@ -582,7 +617,7 @@ def login():
                     session['email'] = email
                     return redirect(url_for('trocar_senha'))
 
-                hierarquia = user[3]
+                hierarquia = serializar_hierarquias(user[3])
                 status = user[4]
                 logado = user[5]
 
@@ -595,11 +630,11 @@ def login():
                     return redirect(url_for('login'))
 
                 destino = None
-                if tipo == 'admin' and hierarquia == 'admin':
+                if tipo == 'admin' and usuario_tem_hierarquia(hierarquia, 'admin'):
                     destino = url_for('painel')
                 elif tipo == 'funcionario':
                     destino = url_for('index')
-                elif tipo == 'rh' and hierarquia == 'rh':
+                elif tipo == 'rh' and usuario_tem_hierarquia(hierarquia, 'rh'):
                     destino = url_for('painel_rh')
                 else:
                     flash('Acesso negado para o tipo selecionado.', 'error')
@@ -624,7 +659,7 @@ def login():
 
 @app.route('/painel')
 def painel():
-    if 'logged_in' in session and session.get('hierarquia') == 'admin':
+    if sessao_tem_hierarquia('admin'):
         # #region debug-point E:painel-start
         report_debug_event('E', 'app.py:painel', '[DEBUG] painel admin start', {'usuario_id': session.get('usuario_id'), 'hierarquia': session.get('hierarquia')})
         # #endregion
@@ -728,7 +763,7 @@ def bater_ponto():
 
 @app.route('/usuarios')
 def gerenciar_usuarios():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         flash('Acesso negado. Somente administradores podem acessar esta página.', 'error')
         return redirect(url_for('login'))
 
@@ -738,7 +773,18 @@ def gerenciar_usuarios():
         cursor.execute("SELECT email, hierarquia, status, logged_in FROM usuarios")
         usuarios = cursor.fetchall()
         usuarios_formatados = [
-            {'usuario': u[0], 'hierarquia': u[1], 'status': u[2], 'logado': u[3]} for u in usuarios
+            {
+                'usuario': u[0],
+                'hierarquia': formatar_hierarquias(u[1]),
+                'hierarquia_raw': serializar_hierarquias(u[1]),
+                'hierarquias_lista': [
+                    HIERARQUIA_LABELS.get(hierarquia, hierarquia.title())
+                    for hierarquia in normalizar_hierarquias(u[1])
+                ],
+                'status': u[2],
+                'logado': u[3]
+            }
+            for u in usuarios
         ]
 
     # Adiciona valores padrão para evitar erro no template
@@ -748,12 +794,18 @@ def gerenciar_usuarios():
 
 @app.route('/editar-usuario', methods=['POST'])
 def editar_usuario():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return jsonify({'success': False, 'message': 'Acesso negado'}), 403
 
     email = request.form['usuario']
-    nova_hierarquia = request.form['hierarquia']
+    hierarquias_selecionadas = request.form.getlist('hierarquia')
     novo_status = request.form['status']
+
+    if not normalizar_hierarquias(hierarquias_selecionadas):
+        flash('Selecione pelo menos uma hierarquia.', 'warning')
+        return redirect(url_for('gerenciar_usuarios'))
+
+    nova_hierarquia = serializar_hierarquias(hierarquias_selecionadas)
 
     try:
         with conectar() as conn:
@@ -770,7 +822,7 @@ def editar_usuario():
 
 @app.route('/resetar-senha', methods=['POST'])
 def resetar_senha():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return jsonify({'success': False, 'message': 'Acesso negado'}), 403
 
     email = request.form['username']
@@ -815,7 +867,7 @@ def trocar_senha():
 
 @app.route('/deslogar-usuario', methods=['POST'])
 def deslogar_usuario():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return jsonify({'success': False, 'message': 'Acesso negado'}), 403
 
     data = request.get_json()
@@ -832,14 +884,20 @@ def deslogar_usuario():
         return jsonify({'success': False, 'message': str(e)})
 @app.route('/cadastro-usuario', methods=['POST'])
 def cadastro_usuario():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return redirect(url_for('login'))
 
     nome = request.form['nome']
     email = request.form['username']
     senha = request.form['password']
-    hierarquia = request.form['hierarquia']  # << GARANTA QUE ISSO ESTÁ AQUI
+    hierarquias_selecionadas = request.form.getlist('hierarquia')
     status = request.form['status']
+
+    if not normalizar_hierarquias(hierarquias_selecionadas):
+        flash('Selecione pelo menos uma hierarquia.', 'warning')
+        return redirect(url_for('gerenciar_usuarios'))
+
+    hierarquia = serializar_hierarquias(hierarquias_selecionadas)
 
     print("DEBUG HIERARQUIA:", hierarquia)  # <-- LOG DE VERIFICAÇÃO
 
@@ -869,7 +927,7 @@ def cadastro_usuario():
  
 @app.route('/painel_rh')
 def painel_rh():
-    if 'logged_in' not in session or session.get('hierarquia') != 'rh':
+    if not sessao_tem_hierarquia('rh'):
         flash("Acesso negado!", "error")
         return redirect(url_for('login'))
 
@@ -906,8 +964,8 @@ def painel_rh():
     resumo_colaboradores = {
         'total': len(usuarios),
         'ativos': sum(1 for usuario in usuarios if (usuario.get('Status') or '').lower() == 'ativo'),
-        'staff': sum(1 for usuario in usuarios if (usuario.get('Hierarquia') or '').lower() == 'staff'),
-        'rh': sum(1 for usuario in usuarios if (usuario.get('Hierarquia') or '').lower() == 'rh'),
+        'staff': sum(1 for usuario in usuarios if usuario_tem_hierarquia(usuario.get('HierarquiaRaw'), 'staff')),
+        'rh': sum(1 for usuario in usuarios if usuario_tem_hierarquia(usuario.get('HierarquiaRaw'), 'rh')),
         'sem_equipe': sum(1 for usuario in usuarios if not usuario.get('EquipeID')),
     }
 
@@ -1065,12 +1123,18 @@ def get_usuarios():
             LEFT JOIN equipes e ON u.equipe_id = e.id
         """)
         colunas = [column[0] for column in cursor.description]
-        return [dict(zip(colunas, row)) for row in cursor.fetchall()]
+        usuarios = []
+        for row in cursor.fetchall():
+            usuario = dict(zip(colunas, row))
+            usuario['HierarquiaRaw'] = serializar_hierarquias(usuario.get('Hierarquia'))
+            usuario['Hierarquia'] = formatar_hierarquias(usuario.get('Hierarquia'))
+            usuarios.append(usuario)
+        return usuarios
 
 
 @app.route("/visualizar_escala", methods=["GET"])
 def visualizar_escala():
-    if 'logged_in' not in session or session.get('hierarquia') != 'rh':
+    if not sessao_tem_hierarquia('rh'):
         flash("Acesso negado!", "error")
         return redirect(url_for('login'))
 
@@ -1124,7 +1188,7 @@ def visualizar_escala():
 
 @app.route('/equipes')
 def gerenciar_equipes():
-    if 'logged_in' not in session or session['hierarquia'] != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         flash("Acesso restrito!", "error")
         return redirect(url_for('login'))
 
@@ -1176,7 +1240,7 @@ def gerenciar_equipes():
 
 @app.route('/atualizar-equipe', methods=['POST'])
 def atualizar_equipe():
-    if 'logged_in' not in session or session.get('hierarquia') != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('login'))
 
@@ -1237,7 +1301,7 @@ def logout():
     return redirect(url_for('login'))
 @app.route('/equipe-dados/<int:equipe_id>')
 def equipe_dados(equipe_id):
-    if 'logged_in' not in session or session['hierarquia'] != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return jsonify({'success': False, 'message': 'Acesso negado'}), 403
 
     with conectar() as conn:
@@ -1261,7 +1325,7 @@ def equipe_dados(equipe_id):
     })
 @app.route('/editar-equipe', methods=['POST'])
 def editar_equipe():
-    if 'logged_in' not in session or session['hierarquia'] != 'admin':
+    if not sessao_tem_hierarquia('admin'):
         return redirect(url_for('login'))
 
     equipe_id = request.form.get('equipe_id')
@@ -1319,7 +1383,7 @@ def visualizar_pontos():
         flash("Você precisa estar logado.", "error")
         return redirect(url_for('login'))
 
-    if session['hierarquia'] != 'staff':
+    if not sessao_tem_hierarquia('staff'):
         flash("Acesso restrito!", "error")
         return redirect(request.referrer or url_for('index'))
 
@@ -1451,7 +1515,7 @@ def relatorios_rh():
 
 @app.route('/editar_registro', methods=['POST'])
 def editar_registro():
-    if 'logged_in' not in session or session['hierarquia'] != 'staff':
+    if not sessao_tem_hierarquia('staff'):
         flash("Acesso negado!", "error")
         return redirect(url_for('index'))
 
@@ -1498,7 +1562,7 @@ def editar_registro():
     return redirect(url_for('visualizar_pontos'))
 @app.route('/abonar_todos_os_pontos', methods=['GET', 'POST'])
 def abonar_todos_os_pontos():
-    if 'logged_in' not in session or session.get('hierarquia') != 'staff':
+    if not sessao_tem_hierarquia('staff'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('index'))
 
