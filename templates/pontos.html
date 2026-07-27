@@ -275,7 +275,7 @@ h3 {
                                 <td>
                                     {{ registros[tipo] }}
                                     {% if not registros['abonado_' + tipo] %}
-                                        <span onclick="abrirModal('{{ registros['id_' + tipo] }}', '{{ registros[tipo] }}')" style="cursor:pointer; color:orange;">✏️</span>
+                                        <span onclick="abrirModal('{{ registros['id_' + tipo] }}', '{{ registros[tipo] }}', '{{ registros['usuario_id'] }}', '{{ data }}', '{{ tipo }}')" style="cursor:pointer; color:orange;">✏️</span>
                                     {% endif %}
                                     {% if registros['corrigido_por_' + tipo] and not registros['abonado_' + tipo] %}
                                         <br><small style="color:green;">Corrigido por: {{ registros['corrigido_por_' + tipo] }}</small>
@@ -303,6 +303,9 @@ h3 {
         <h3>Editar Registro</h3>
         <form method="POST" action="{{ url_for('editar_registro') }}">
             <input type="hidden" name="ponto_id" id="ponto_id">
+            <input type="hidden" name="usuario_id" id="usuario_id">
+            <input type="hidden" name="data_registro" id="data_registro">
+            <input type="hidden" name="tipo_registro" id="tipo_registro">
             <input type="hidden" name="acao" value="correcao">
             <label for="novo_horario">Novo Horário:</label>
             <input type="time" name="novo_horario" id="novo_horario" required>
@@ -316,9 +319,12 @@ h3 {
 </div>
 
 <script>
-    function abrirModal(id, horarioAtual) {
+    function abrirModal(id, horarioAtual, usuarioId, dataRegistro, tipoRegistro) {
         document.getElementById('ponto_id').value = id;
-        document.getElementById('novo_horario').value = horarioAtual;
+        document.getElementById('usuario_id').value = usuarioId;
+        document.getElementById('data_registro').value = dataRegistro;
+        document.getElementById('tipo_registro').value = tipoRegistro;
+        document.getElementById('novo_horario').value = horarioAtual === '-' ? '' : horarioAtual;
         document.getElementById('modalEditar').style.display = 'flex';
     }
 

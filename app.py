@@ -29,11 +29,10 @@ def hoje_brasilia():
     return agora_brasilia().date()
 
 
-def report_debug_event(hypothesis_id, location, msg, data=None, run_id='pre'):
+def report_debug_event(hypothesis_id, location, msg, data=None, run_id='pre', env_path='.dbg/login-internal-error.env', session_fallback='login-internal-error'):
     try:
-        env_path = '.dbg/login-internal-error.env'
         debug_url = 'http://127.0.0.1:7777/event'
-        session_id = 'login-internal-error'
+        session_id = session_fallback
 
         try:
             with open(env_path, 'r', encoding='utf-8') as env_file:
@@ -538,6 +537,16 @@ def corrigir_ponto():
     motivo = request.form['motivo']
     usuario_editor = session['usuario_id']
 
+    # #region debug-point E:corrigir-ponto-request
+    report_debug_event('E', 'app.py:corrigir_ponto', '[DEBUG] corrigir_ponto request', {
+        'data': data,
+        'nome_usuario': nome_usuario,
+        'tipo': tipo,
+        'nova_hora': nova_hora,
+        'usuario_editor': usuario_editor,
+    }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+    # #endregion
+
     try:
         with conectar() as conn:
             cursor = conn.cursor()
@@ -546,6 +555,13 @@ def corrigir_ponto():
             cursor.execute("SELECT id FROM usuarios WHERE nome = %s", (nome_usuario,))
             usuario = cursor.fetchone()
             if not usuario:
+                # #region debug-point D:corrigir-ponto-usuario-nao-encontrado
+                report_debug_event('D', 'app.py:corrigir_ponto', '[DEBUG] corrigir_ponto user not found', {
+                    'nome_usuario': nome_usuario,
+                    'data': data,
+                    'tipo': tipo,
+                }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+                # #endregion
                 flash("Usuário não encontrado.", "error")
                 return redirect(url_for('visualizar_pontos'))
 
@@ -562,10 +578,50 @@ def corrigir_ponto():
                 WHERE usuario_id = %s AND data_registro = %s AND tipo = %s
             """, (nova_hora, motivo, usuario_editor, usuario_id, data, tipo))
 
+            # #region debug-point A:corrigir-ponto-update
+            report_debug_event('A', 'app.py:corrigir_ponto', '[DEBUG] corrigir_ponto update executed', {
+                'usuario_id': usuario_id,
+                'data': data,
+                'tipo': tipo,
+                'rowcount': cursor.rowcount,
+            }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+            # #endregion
+
+            cursor.execute("""
+                SELECT id, hora_registro, hora_corrigida, corrigido, motivo_correcao
+                FROM ponto
+                WHERE usuario_id = %s AND data_registro = %s AND tipo = %s
+            """, (usuario_id, data, tipo))
+            ponto_atualizado = cursor.fetchone()
+
+            # #region debug-point A:corrigir-ponto-readback
+            report_debug_event('A', 'app.py:corrigir_ponto', '[DEBUG] corrigir_ponto readback', {
+                'usuario_id': usuario_id,
+                'data': data,
+                'tipo': tipo,
+                'registro': {
+                    'id': ponto_atualizado[0] if ponto_atualizado else None,
+                    'hora_registro': str(ponto_atualizado[1]) if ponto_atualizado else None,
+                    'hora_corrigida': str(ponto_atualizado[2]) if ponto_atualizado else None,
+                    'corrigido': bool(ponto_atualizado[3]) if ponto_atualizado else None,
+                    'motivo_correcao': ponto_atualizado[4] if ponto_atualizado else None,
+                }
+            }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+            # #endregion
+
             conn.commit()
             flash("Ponto corrigido com sucesso!", "success")
 
     except Exception as e:
+        # #region debug-point B:corrigir-ponto-exception
+        report_debug_event('B', 'app.py:corrigir_ponto', '[DEBUG] corrigir_ponto exception', {
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'data': data,
+            'nome_usuario': nome_usuario,
+            'tipo': tipo,
+        }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+        # #endregion
         print("Erro ao corrigir ponto:", e)
         flash("Erro ao corrigir ponto.", "error")
 
@@ -1048,6 +1104,33 @@ def painel_rh():
             quantidade_registros = len(registros_fetch)
             total_colaboradores_filtrados = len({row[0] for row in registros_fetch})
 
+            # #region debug-point C:painel-rh-fetch
+            report_debug_event('C', 'app.py:painel_rh', '[DEBUG] painel_rh registros carregados', {
+                'data_inicio': data_inicio,
+                'data_fim': data_fim,
+                'usuario_id': usuario_id,
+                'equipe_id': equipe_id,
+                'quantidade_registros': quantidade_registros,
+                'amostra': [
+                    {
+                        'usuario_id': row[0],
+                        'nome': row[1],
+                        'data': str(row[2]),
+                        'entrada': str(row[3]) if row[3] else None,
+                        'saida': str(row[4]) if row[4] else None,
+                        'pausa': str(row[5]) if row[5] else None,
+                        'volta': str(row[6]) if row[6] else None,
+                        'corrigido_entrada': bool(row[7]),
+                        'corrigido_pausa': bool(row[8]),
+                        'corrigido_volta': bool(row[9]),
+                        'corrigido_saida': bool(row[10]),
+                        'motivo': row[11],
+                    }
+                    for row in registros_fetch[:5]
+                ]
+            }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+            # #endregion
+
             cursor.execute("""
                 SELECT usuario_id, dia_semana, entrada, saida, pausa, volta_pausa
                 FROM escalas
@@ -1465,6 +1548,7 @@ def visualizar_pontos():
 
             if data_str not in registros_por_usuario[nome]:
                 registros_por_usuario[nome][data_str] = {
+                    'usuario_id': uid,
                     'entrada': '-', 'id_entrada': '', 'corrigido_por_entrada': None, 'abonado_entrada': 0,
                     'pausa': '-', 'id_pausa': '', 'corrigido_por_pausa': None, 'abonado_pausa': 0,
                     'volta_pausa': '-', 'id_volta_pausa': '', 'corrigido_por_volta_pausa': None, 'abonado_volta_pausa': 0,
@@ -1546,6 +1630,21 @@ def editar_registro():
     motivo = request.form['motivo']
     acao = request.form['acao']
     usuario_editor = session['usuario_id']
+    usuario_id_form = request.form.get('usuario_id')
+    data_registro_form = request.form.get('data_registro')
+    tipo_registro_form = request.form.get('tipo_registro')
+
+    # #region debug-point E:editar-registro-request
+    report_debug_event('E', 'app.py:editar_registro', '[DEBUG] editar_registro request', {
+        'ponto_id': ponto_id,
+        'acao': acao,
+        'usuario_editor': usuario_editor,
+        'novo_horario': request.form.get('novo_horario'),
+        'usuario_id_form': usuario_id_form,
+        'data_registro_form': data_registro_form,
+        'tipo_registro_form': tipo_registro_form,
+    }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+    # #endregion
 
     try:
         with conectar() as conn:
@@ -1555,15 +1654,62 @@ def editar_registro():
                 novo_horario = request.form['novo_horario']
                 if len(novo_horario) == 5:
                     novo_horario += ":00"
-                cursor.execute("""
-                    UPDATE ponto
-                    SET corrigido = true,
-                        hora_corrigida = %s,
-                        motivo_correcao = %s,
-                        corrigido_por = %s,
-                        data_hora_alteracao = now()
-                    WHERE id = %s
-                """, (novo_horario, motivo, usuario_editor, ponto_id))
+                if ponto_id:
+                    cursor.execute("""
+                        UPDATE ponto
+                        SET corrigido = true,
+                            hora_corrigida = %s,
+                            motivo_correcao = %s,
+                            corrigido_por = %s,
+                            data_hora_alteracao = now()
+                        WHERE id = %s
+                    """, (novo_horario, motivo, usuario_editor, ponto_id))
+
+                    # #region debug-point A:editar-registro-update-correcao
+                    report_debug_event('A', 'app.py:editar_registro', '[DEBUG] editar_registro correcao update executed', {
+                        'ponto_id': ponto_id,
+                        'rowcount': cursor.rowcount,
+                        'novo_horario': novo_horario,
+                    }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+                    # #endregion
+                else:
+                    if not usuario_id_form or not data_registro_form or not tipo_registro_form:
+                        raise ValueError('Dados insuficientes para criar uma batida ausente.')
+
+                    cursor.execute("""
+                        INSERT INTO ponto (
+                            usuario_id,
+                            data_registro,
+                            hora_registro,
+                            tipo,
+                            corrigido,
+                            hora_corrigida,
+                            motivo_correcao,
+                            corrigido_por,
+                            data_hora_alteracao
+                        )
+                        VALUES (%s, %s, %s, %s, true, %s, %s, %s, now())
+                        RETURNING id
+                    """, (
+                        int(usuario_id_form),
+                        data_registro_form,
+                        novo_horario,
+                        tipo_registro_form,
+                        novo_horario,
+                        motivo,
+                        usuario_editor,
+                    ))
+                    ponto_id = cursor.fetchone()[0]
+
+                    # #region debug-point D:editar-registro-insert-correcao
+                    report_debug_event('D', 'app.py:editar_registro', '[DEBUG] editar_registro created missing point', {
+                        'ponto_id': ponto_id,
+                        'usuario_id': usuario_id_form,
+                        'data_registro': data_registro_form,
+                        'tipo_registro': tipo_registro_form,
+                        'novo_horario': novo_horario,
+                    }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+                    # #endregion
 
             elif acao == 'abono':
                 cursor.execute("""
@@ -1575,10 +1721,49 @@ def editar_registro():
                     WHERE id = %s
                 """, (motivo, usuario_editor, ponto_id))
 
+                # #region debug-point A:editar-registro-update-abono
+                report_debug_event('A', 'app.py:editar_registro', '[DEBUG] editar_registro abono update executed', {
+                    'ponto_id': ponto_id,
+                    'rowcount': cursor.rowcount,
+                }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+                # #endregion
+
+            cursor.execute("""
+                SELECT id, usuario_id, data_registro, tipo, hora_registro, hora_corrigida, corrigido, motivo_correcao, motivo_abono
+                FROM ponto
+                WHERE id = %s
+            """, (ponto_id,))
+            ponto_atualizado = cursor.fetchone()
+
+            # #region debug-point A:editar-registro-readback
+            report_debug_event('A', 'app.py:editar_registro', '[DEBUG] editar_registro readback', {
+                'ponto_id': ponto_id,
+                'registro': {
+                    'id': ponto_atualizado[0] if ponto_atualizado else None,
+                    'usuario_id': ponto_atualizado[1] if ponto_atualizado else None,
+                    'data_registro': str(ponto_atualizado[2]) if ponto_atualizado else None,
+                    'tipo': ponto_atualizado[3] if ponto_atualizado else None,
+                    'hora_registro': str(ponto_atualizado[4]) if ponto_atualizado else None,
+                    'hora_corrigida': str(ponto_atualizado[5]) if ponto_atualizado else None,
+                    'corrigido': bool(ponto_atualizado[6]) if ponto_atualizado else None,
+                    'motivo_correcao': ponto_atualizado[7] if ponto_atualizado else None,
+                    'motivo_abono': ponto_atualizado[8] if ponto_atualizado else None,
+                }
+            }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+            # #endregion
+
             conn.commit()
             flash("Registro atualizado com sucesso!", "success")
 
     except Exception as e:
+        # #region debug-point B:editar-registro-exception
+        report_debug_event('B', 'app.py:editar_registro', '[DEBUG] editar_registro exception', {
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'ponto_id': ponto_id,
+            'acao': acao,
+        }, run_id='post-fix', env_path='.dbg/point-save-bug.env', session_fallback='point-save-bug')
+        # #endregion
         print("Erro ao atualizar registro:", e)
         flash("Erro ao atualizar registro.", "error")
 
