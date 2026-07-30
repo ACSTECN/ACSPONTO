@@ -584,6 +584,7 @@ def logotwinex_png():
     return ('Not Found', 404)
 
 
+@app.route('/cron/logout', methods=['GET'])
 @app.route('/api/cron/logout', methods=['GET'])
 def cron_logout():
     secret = os.getenv('CRON_SECRET')
