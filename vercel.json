@@ -6,6 +6,12 @@
       "use": "@vercel/python"
     }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/logout",
+      "schedule": "*/10 * * * *"
+    }
+  ],
   "routes": [
     {
       "handle": "filesystem"

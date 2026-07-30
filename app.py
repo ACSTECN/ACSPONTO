@@ -584,6 +584,25 @@ def logotwinex_png():
     return ('Not Found', 404)
 
 
+@app.route('/api/cron/logout', methods=['GET'])
+def cron_logout():
+    secret = os.getenv('CRON_SECRET')
+    if secret:
+        auth = request.headers.get('Authorization')
+        if auth != f"Bearer {secret}":
+            return ('Unauthorized', 401)
+
+    try:
+        with conectar() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE usuarios SET logged_in = false WHERE logged_in = true")
+            atualizados = cursor.rowcount
+            conn.commit()
+        return jsonify({'success': True, 'updated': atualizados})
+    except Exception as e:
+        return jsonify({'success': False, 'error': type(e).__name__}), 500
+
+
 
 @app.route('/corrigir_ponto', methods=['POST'])
 def corrigir_ponto():
