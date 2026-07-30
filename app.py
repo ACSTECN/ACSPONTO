@@ -766,10 +766,6 @@ def login():
                     flash('Usuário inativo.', 'error')
                     return redirect(url_for('login'))
 
-                if logado:
-                    flash('Usuário já está logado.', 'error')
-                    return redirect(url_for('login'))
-
                 destino = None
                 if tipo == 'admin' and usuario_tem_hierarquia(hierarquia, 'admin'):
                     destino = url_for('painel')
