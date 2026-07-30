@@ -58,6 +58,15 @@
       margin-bottom: 8px;
     }
 
+    .brand-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 16px;
+      display: block;
+      margin-bottom: 12px;
+    }
+
     .brand h2 {
       font-size: 22px;
       color: #f8fafc;
@@ -68,6 +77,25 @@
       color: var(--muted);
       font-size: 13px;
       line-height: 1.5;
+    }
+
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 0 0;
+      margin-top: 22px;
+      color: rgba(148, 163, 184, 0.9);
+      font-size: 12px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .app-footer img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      border-radius: 6px;
     }
 
     .nav-link,
@@ -858,6 +886,7 @@
 <body>
   <aside class="sidebar">
     <div class="brand">
+      <img class="brand-logo" src="/logoacs.png" alt="ACS Ponto">
       <h2>ACS Ponto</h2>
       <p>Painel administrativo com visão operacional, indicadores do dia e gestão centralizada.</p>
     </div>
@@ -1209,6 +1238,11 @@
           {% if page < total_pages %}<a href="{{ url_for('painel', page=page+1) }}"><button>Próxima &raquo;</button></a>{% endif %}
         </div>
       </section>
+
+      <footer class="app-footer">
+        <img src="/logotwinex.png" alt="TWINEX">
+        <span>Direitos reservados por TWINEX TECNOLOGIA • {{ dashboard.hoje_formatado.split('/')[-1] }}</span>
+      </footer>
     </div>
   </main>
 

@@ -386,6 +386,30 @@
       text-align: center;
     }
 
+    .app-footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      color: rgba(226, 232, 240, 0.8);
+      font-size: 12px;
+      background: rgba(2, 6, 23, 0.55);
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      backdrop-filter: blur(12px);
+    }
+
+    .app-footer img {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+
     @media (max-width: 1200px) {
       .feature-grid,
       .perfil-opcoes {
@@ -426,7 +450,7 @@
   <div class="page">
     <section class="hero">
       <div class="hero-top">
-        <img src="/logofundo.png" alt="Logo ACS Ponto">
+        <img src="/logoacs.png" alt="Logo ACS Ponto">
         <h1>Controle de ponto com cara de produto serio</h1>
         <p>Entre no ACS Ponto escolhendo seu perfil de acesso. O sistema direciona cada tipo de usuario para a area correta com uma experiencia mais limpa, moderna e profissional.</p>
 
@@ -530,6 +554,11 @@
       </div>
     </section>
   </div>
+
+  <footer class="app-footer">
+    <img src="/logotwinex.png" alt="TWINEX">
+    <span>Direitos reservados por TWINEX TECNOLOGIA</span>
+  </footer>
 
   <script>
     function mostrarLogin(tipo, botao) {

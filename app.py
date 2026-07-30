@@ -6,14 +6,14 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import bcrypt
 import psycopg
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-change-me')
-app.permanent_session_lifetime = timedelta(hours=1)
+app.permanent_session_lifetime = timedelta(minutes=10)
 
 try:
     BRASILIA_TZ = ZoneInfo('America/Sao_Paulo')
@@ -236,6 +236,8 @@ def iniciar_sessao_usuario(user_id, nome, email, hierarquia):
     session['email'] = email
     session['hierarquia'] = serializar_hierarquias(hierarquias)
     session['hierarquias'] = hierarquias
+    session['session_started_at'] = agora_brasilia().isoformat()
+    session['last_activity_at'] = agora_brasilia().isoformat()
     session.permanent = True
 
 
@@ -441,6 +443,38 @@ def sincronizar_sessao_com_banco():
     if request.endpoint in {'login', 'logout', 'static'}:
         return None
 
+    def finalizar_sessao(mensagem):
+        usuario_id = session.get('usuario_id')
+        session.clear()
+        if usuario_id:
+            try:
+                with conectar() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE usuarios SET logged_in = false WHERE id = %s", (usuario_id,))
+                    conn.commit()
+            except Exception:
+                pass
+        flash(mensagem, 'warning')
+        return redirect(url_for('login'))
+
+    inicio = session.get('session_started_at')
+    if inicio:
+        try:
+            inicio_dt = datetime.fromisoformat(inicio)
+        except ValueError:
+            inicio_dt = None
+        if inicio_dt and (agora_brasilia() - inicio_dt) > app.permanent_session_lifetime:
+            return finalizar_sessao('Sessão expirada. Faça login novamente.')
+
+    ultimo = session.get('last_activity_at')
+    if ultimo:
+        try:
+            ultimo_dt = datetime.fromisoformat(ultimo)
+        except ValueError:
+            ultimo_dt = None
+        if ultimo_dt and (agora_brasilia() - ultimo_dt) > app.permanent_session_lifetime:
+            return finalizar_sessao('Sessão expirada por inatividade. Faça login novamente.')
+
     usuario_id = session.get('usuario_id')
     if not usuario_id:
         session.clear()
@@ -461,6 +495,7 @@ def sincronizar_sessao_com_banco():
 
     session['hierarquia'] = serializar_hierarquias(usuario[2])
     session['hierarquias'] = normalizar_hierarquias(usuario[2])
+    session['last_activity_at'] = agora_brasilia().isoformat()
 
     return None
 
@@ -521,6 +556,16 @@ def index():
         )
 
     return redirect(url_for('login'))
+
+
+@app.route('/logoacs.png')
+def logoacs_png():
+    return send_from_directory('public', 'logoacs.png')
+
+
+@app.route('/logotwinex.png')
+def logotwinex_png():
+    return send_from_directory('public', 'logotwinex.png')
 
 
 
@@ -1198,6 +1243,7 @@ def painel_rh():
     media_horas=media_horas,
     resumo_colaboradores=resumo_colaboradores,
     atingiu_meta=(total_logado >= total_esperado),
+    ano=agora_brasilia().year,
     aba_ativa='ponto'  # <- ESSENCIAL PARA EXIBIR A ABA CERTA!
 )
 
@@ -1285,6 +1331,7 @@ def visualizar_escala():
         usuario_id=usuario_id, 
         equipe_id=equipe_id,
         nome_colaborador=nome_colaborador,
+        ano=agora_brasilia().year,
         aba_ativa='visualizar_escala'
     )
 
@@ -1615,6 +1662,7 @@ def relatorios_rh():
         usuarios=get_usuarios(),
         equipes=buscar_equipes(),
         ranking_frequencia=dados['ranking_frequencia'],
+        ano=agora_brasilia().year,
         aba_ativa='relatorio'
     )
 

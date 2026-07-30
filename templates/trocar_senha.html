@@ -3,20 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <title>Redefinir Senha</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-    .box { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 0 20px #000; }
+    body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding-bottom: 70px; }
+    .box { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 0 20px #000; width: min(420px, 92vw); }
     h2 { color: #22d3ee; margin-bottom: 20px; text-align: center; }
+    .brand-logo { width: 64px; height: 64px; object-fit: contain; border-radius: 16px; margin: 0 auto 14px; display: block; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); }
     input { width: 100%; padding: 10px; border: none; border-radius: 8px; margin-bottom: 15px; background: #0f172a; color: white; border: 1px solid #334155; }
     button { padding: 10px 20px; background: #3b82f6; border: none; color: white; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+
+    .app-footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      color: rgba(226, 232, 240, 0.85);
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.88);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .app-footer img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
   <form class="box" method="POST">
+    <img class="brand-logo" src="/logoacs.png" alt="ACS Ponto">
     <h2>Redefinir Senha</h2>
     <input type="password" name="nova_senha" placeholder="Nova Senha" required>
     <input type="password" name="repetir_senha" placeholder="Repetir Senha" required>
     <button type="submit">Atualizar Senha</button>
   </form>
+  <footer class="app-footer">
+    <img src="/logotwinex.png" alt="TWINEX">
+    <span>Direitos reservados por TWINEX TECNOLOGIA</span>
+  </footer>
 </body>
 </html>

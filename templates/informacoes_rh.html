@@ -59,6 +59,15 @@
       margin-bottom: 8px;
     }
 
+    .brand-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 16px;
+      display: block;
+      margin-bottom: 12px;
+    }
+
     .brand h2 {
       font-size: 22px;
       color: #f8fafc;
@@ -69,6 +78,25 @@
       color: var(--muted);
       line-height: 1.55;
       font-size: 13px;
+    }
+
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 0 0;
+      margin-top: 22px;
+      color: rgba(148, 163, 184, 0.9);
+      font-size: 12px;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .app-footer img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      border-radius: 6px;
     }
 
     .nav-btn {
@@ -635,6 +663,7 @@
 <body>
   <aside class="sidebar">
     <div class="brand">
+      <img class="brand-logo" src="/logoacs.png" alt="ACS Ponto">
       <h2>ACS Ponto RH</h2>
       <p>Painel premium para acompanhar colaboradores, escala, jornada, banco de horas e frequência com mais clareza.</p>
     </div>
@@ -1070,6 +1099,11 @@
           <div class="empty-state">Nenhum dado encontrado para o período selecionado.</div>
         {% endif %}
       </section>
+
+      <footer class="app-footer">
+        <img src="/logotwinex.png" alt="TWINEX">
+        <span>Direitos reservados por TWINEX TECNOLOGIA • {{ ano }}</span>
+      </footer>
     </div>
   </main>
 

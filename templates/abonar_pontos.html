@@ -23,6 +23,17 @@
             min-height: 100vh;
         }
 
+        .sidebar .brand-logo {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            border-radius: 14px;
+            margin: 6px auto 10px;
+            display: block;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
         .sidebar a {
             background-color: #2F80ED10;
             color: #ffffff;
@@ -44,6 +55,7 @@
         .main-content {
             flex: 1;
             padding: 40px;
+            padding-bottom: 80px;
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -135,10 +147,35 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
+        .app-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 14px;
+            color: rgba(226, 232, 240, 0.85);
+            font-size: 12px;
+            background: rgba(30, 42, 56, 0.88);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .app-footer img {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
 <div class="sidebar">
+    <img class="brand-logo" src="/logoacs.png" alt="ACS Ponto">
     <a href="/">🏠 Início</a>
     <a href="{{ url_for('visualizar_pontos') }}">📋 Visualizar Pontos</a>
     <a href="{{ url_for('logout') }}">⬅ Sair</a>
@@ -179,5 +216,9 @@
         </div>
     </div>
 </div>
+<footer class="app-footer">
+    <img src="/logotwinex.png" alt="TWINEX">
+    <span>Direitos reservados por TWINEX TECNOLOGIA</span>
+</footer>
 </body>
 </html>
