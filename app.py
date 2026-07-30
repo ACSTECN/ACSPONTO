@@ -560,12 +560,28 @@ def index():
 
 @app.route('/logoacs.png')
 def logoacs_png():
-    return send_from_directory('public', 'logoacs.png')
+    diretorios = [
+        os.path.join(app.root_path, 'public'),
+        os.path.join(app.root_path, 'static'),
+    ]
+    for diretorio in diretorios:
+        caminho = os.path.join(diretorio, 'logoacs.png')
+        if os.path.exists(caminho):
+            return send_from_directory(diretorio, 'logoacs.png')
+    return ('Not Found', 404)
 
 
 @app.route('/logotwinex.png')
 def logotwinex_png():
-    return send_from_directory('public', 'logotwinex.png')
+    diretorios = [
+        os.path.join(app.root_path, 'public'),
+        os.path.join(app.root_path, 'static'),
+    ]
+    for diretorio in diretorios:
+        caminho = os.path.join(diretorio, 'logotwinex.png')
+        if os.path.exists(caminho):
+            return send_from_directory(diretorio, 'logotwinex.png')
+    return ('Not Found', 404)
 
 
 
