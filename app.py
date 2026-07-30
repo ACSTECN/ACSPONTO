@@ -590,7 +590,8 @@ def cron_logout():
     secret = os.getenv('CRON_SECRET')
     if secret:
         auth = request.headers.get('Authorization')
-        if auth != f"Bearer {secret}":
+        secret_query = request.args.get('secret')
+        if auth != f"Bearer {secret}" and secret_query != secret:
             return ('Unauthorized', 401)
 
     try:
